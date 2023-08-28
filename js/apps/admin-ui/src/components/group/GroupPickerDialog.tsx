@@ -75,7 +75,7 @@ export const GroupPickerDialog = ({
       let count = 0;
       if (!groupId) {
         groups = await fetchAdminUI<GroupRepresentation[]>(
-          "ui-ext/groups",
+          "groups",
           Object.assign(
             {
               first: `${first}`,
@@ -89,13 +89,18 @@ export const GroupPickerDialog = ({
         if (!group) {
           throw new Error(t("notFound"));
         }
-        groups = group.subGroups!;
+        groups = await fetchAdminUI<GroupRepresentation[]>(
+          `groups/${groupId}/children`,
+          {
+            first: `${first}`,
+            max: `${max + 1}`,
+          },
+        );
       }
 
-      if (isSearching) {
-        count = (await adminClient.groups.count({ search: filter, top: true }))
-          .count;
-      }
+      count = (
+        await adminClient.groups.count({ search: filter, top: !groupId })
+      ).count;
 
       if (id) {
         existingUserGroups = await adminClient.users.listGroups({
@@ -160,10 +165,7 @@ export const GroupPickerDialog = ({
       ]}
     >
       <PaginatingTableToolbar
-        count={
-          (isSearching ? count : groups.length) -
-          (groupId || isSearching ? first : 0)
-        }
+        count={count}
         first={first}
         max={max}
         onNextClick={setFirst}
@@ -219,40 +221,44 @@ export const GroupPickerDialog = ({
           ))}
         </Breadcrumb>
         <DataList aria-label={t("groups")} isCompact>
-          {groups
-            .slice(groupId ? first : 0, max + (groupId ? first : 0))
-            .map((group: SelectableGroup) => (
-              <>
-                <GroupRow
-                  key={group.id}
-                  group={group}
-                  isRowDisabled={isRowDisabled}
-                  onSelect={setGroupId}
-                  type={type}
-                  isSearching={isSearching}
-                  setIsSearching={setIsSearching}
-                  selectedRows={selectedRows}
-                  setSelectedRows={setSelectedRows}
-                  canBrowse={canBrowse}
-                />
-                {isSearching &&
-                  group.subGroups?.length !== 0 &&
-                  group.subGroups!.map((g) => (
-                    <GroupRow
-                      key={g.id}
-                      group={g}
-                      isRowDisabled={isRowDisabled}
-                      onSelect={setGroupId}
-                      type={type}
-                      isSearching={isSearching}
-                      setIsSearching={setIsSearching}
-                      selectedRows={selectedRows}
-                      setSelectedRows={setSelectedRows}
-                      canBrowse={canBrowse}
-                    />
-                  ))}
-              </>
-            ))}
+          {groups.map((group: SelectableGroup) => (
+            <>
+              <GroupRow
+                key={group.id}
+                group={group}
+                isRowDisabled={isRowDisabled}
+                onSelect={(groupId) => {
+                  setFirst(0);
+                  setGroupId(groupId);
+                }}
+                type={type}
+                isSearching={isSearching}
+                setIsSearching={setIsSearching}
+                selectedRows={selectedRows}
+                setSelectedRows={setSelectedRows}
+                canBrowse={canBrowse}
+              />
+              {isSearching &&
+                group.subGroups?.length !== 0 &&
+                group.subGroups!.map((g) => (
+                  <GroupRow
+                    key={g.id}
+                    group={g}
+                    isRowDisabled={isRowDisabled}
+                    onSelect={(groupId) => {
+                      setFirst(0);
+                      setGroupId(groupId);
+                    }}
+                    type={type}
+                    isSearching={isSearching}
+                    setIsSearching={setIsSearching}
+                    selectedRows={selectedRows}
+                    setSelectedRows={setSelectedRows}
+                    canBrowse={canBrowse}
+                  />
+                ))}
+            </>
+          ))}
         </DataList>
         {groups.length === 0 && !isSearching && (
           <ListEmptyState
