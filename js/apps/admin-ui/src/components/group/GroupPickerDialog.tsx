@@ -165,6 +165,22 @@ export const GroupPickerDialog = ({
     });
   };
 
+  /**
+  serves the count displayed in the paginated toolbar.
+  **/
+  const toolbarCount = () => {
+    let currentGroupVal = currentGroup();
+    if(isSearching){
+        return count;
+    }
+    else if(currentGroupVal && currentGroupVal.subGroupCount !== undefined){
+        return currentGroupVal!.subGroupCount!
+    }
+    else{
+        return (groups.length) - (groupId || isSearching ? first : 0)
+    }
+  }
+
   return (
     <Modal
       variant={isSearching ? ModalVariant.medium : ModalVariant.small}
@@ -197,11 +213,7 @@ export const GroupPickerDialog = ({
     >
       <PaginatingTableToolbar
         count={
-          (isSearching
-            ? count
-            : currentGroup().subGroupCount !== undefined
-            ? currentGroup()!.subGroupCount!
-            : groups.length) - (groupId || isSearching ? first : 0)
+          toolbarCount()
         }
         first={first}
         max={max}
