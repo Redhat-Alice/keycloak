@@ -22,7 +22,7 @@
       - 2FA
 - Tenant
   - This is the conceptual object holding all hierarchal information about a business entity
-  - This is the collection of every permission, scope, user, resource server, etc that can be accessed by any user that falls within this domain
+  - This is the collection of every permission, scope, user, resource server, etc that a logical entity has authority over
   - A tenant should have an associated client (or should this go to the workspace?), base scopes, identity provider, login method, etc
 - Workspace
   - The workspace conceptualizes a group of users, permissions, scopes, etc 
@@ -41,6 +41,7 @@ erDiagram
     USER ||..|| IDENITTY_PROVIDER: from
     REALM ||--o{ GROUP: contains
     USER ||..o{ GROUP: associated
+    GROUP ||--o{ GROUP: parent
     REALM ||--|{ CLIENT: has
     CLIENT ||--|{ SCOPE: has
     USER ||..|{ SCOPE: has
@@ -61,14 +62,25 @@ Keycloak currently expects that you create a new realm for a newly associated gr
 ## Some sample user stories that are poorly written but get the point across
 One key problem that we want to solve is associating a single user in a large, diverse user pool with its correct authentication and access scopes, identity providers, and business domains without having to duplicate data or create unique endpoints for this purpose. 
 
+User A has admin privileges for users associated with a particular organization or group but not for users associated with another organiation or group. All of these users exist within the context of the same realm but need to be logically subdivided into individual "blocks" of users. 
+
 User A might belong to a particular tenant but also have permissions to work on certain workspaces underneath a different tenant. Only the tenant that User A belongs to should be able to manage the user itself, however, and we'd like to avoid creating multiple login portals or accounts just to give access to the separate workspace. 
 
 ## New Entity Relationship
+
 ```mermaid
 erDiagram
-    REALM ||--|{ TENANT: has
-    TENANT ||--|{ WORKSPACE: contains
-    WORKSPACE ||--o{ WORKSPACE: contains
+    REALM ||--o{ TENANT: has
+    REALM ||--|{ USER: has
+    REALM ||--|{ CLIENT: has
+    REALM ||--|{ IDENTITY_PROVIDER: has
+    USER ||..|| IDENTITY_PROVIDER: from
+    IDENTITY_PROVIDER ||..|| TENANT: "maps to"
+    TENANT ||..|{ CLIENT: "can access"
+    TENANT ||..o| "*AUTH_SERVER": informs
     TENANT ||--|{ USER: has
-    USER ||..|{ WORKSPACE: associated
+    TENANT ||--o{ GROUP: contains
+    GROUP ||--o{ GROUP: parent
+    USER ||..o{ GROUP: associated
 ```
+\* Note: Not a part of keycloak server considerations
