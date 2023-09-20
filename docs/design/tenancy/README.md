@@ -38,12 +38,13 @@ Keycloak follows a pattern:
 | Tenant Storage       | :white_check_mark: |
 | OIDC Claim to Tenant | :white_check_mark: |
 | SAML Role to Tenant  | :white_check_mark: |
-| User Permissions     |
-| User Model           |
-| User Storage         |
-| Group Model          |
-| Group Storage        |
-| Group Permissions    |
+| KeycloakSession      |                    |
+| User Permissions     |                    |
+| User Model           |                    |
+| User Storage         |                    |
+| Group Model          |                    |
+| Group Storage        |                    |
+| Group Permissions    |                    |
 
 
 ### Sequence Diagrams

@@ -81,6 +81,56 @@ erDiagram
     TENANT ||--|{ USER: has
     TENANT ||--o{ GROUP: contains
     GROUP ||--o{ GROUP: parent
+    REALM ||--o{ GROUP: has
     USER ||..o{ GROUP: associated
 ```
 \* Note: Not a part of keycloak server considerations
+
+By inserting the tenant entity, an optional layer is formed that considers the grouping of users for parsing out authority. A tenant can have many factors associated with it for this purpose: associated admins, fine grained permissions for operations on the tenant, associated groups with users. This creates an environment where users can be mapped to tenants based on certain attributes (origin idenity provider, claims, etc) without removing them from the realm. 
+
+## Relevant Data And Relationships
+
+```mermaid
+erDiagram
+  REALM {
+    string id PK
+    string name
+
+  }
+  TENANT {
+    string id PK
+    string realm_id FK "required"
+    string name
+  }
+  USER {
+    string id PK
+    string realm_id FK "required"
+    string tenant_id FK
+    string name
+  }
+  USER_GROUP {
+    string user_id PK,FK
+    string group_id PK,FK
+  }
+  GROUP {
+    string id PK
+    string realm_id FK "required"
+    string tenant_id FK
+    string name
+  }
+  GROUP_ATTRIBUTE {
+    string id PK
+    string group_id FK "required"
+    string name
+    string value
+  }
+
+  REALM ||--o{ TENANT: has
+  REALM ||--|{ USER: has
+  TENANT ||--|{ USER: has
+  REALM ||--o{ GROUP: has
+  TENANT ||--o{ GROUP: has
+  USER ||--o{ USER_GROUP: links
+  GROUP ||--o{ USER_GROUP: links
+  GROUP ||--o{ GROUP_ATTRIBUTE: has
+```
