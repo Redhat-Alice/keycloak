@@ -153,6 +153,22 @@ class AdminClient {
     await this.client.users.del({ id: user[0].id! });
   }
 
+  /**
+   * batch delete users.
+   * userList String array  list of users that need to be deleted.
+   */
+  async deleteMultipleUsers(userList: string[]) {
+    await this.login();
+    console.log(userList);
+    /*Promise.all(() => {
+      userList.forEach(username) {
+        dconst user = await this.client.users.find({ username });
+        await this.client.users.del({ id: user[0].id! });
+      }
+      return;
+    })*/
+  }
+
   async createClientScope(scope: ClientScopeRepresentation) {
     await this.login();
     return await this.client.clientScopes.create(scope);

@@ -30,6 +30,7 @@ describe("Group test", () => {
   let groupName: string;
   const groupNames: string[] = [];
   const predefinedGroups = ["level", "level1", "level2", "level3"];
+  const createdUsers: string[] = [];
   const emptyGroup = "empty-group";
   let users: { id: string; username: string }[] = [];
   const username = "test-user";
@@ -50,7 +51,10 @@ describe("Group test", () => {
     );
   });
 
-  after(() => adminClient.deleteGroups());
+  after(() => {
+    adminClient.deleteGroups();
+    adminClient.deleteMultipleUsers(createdUsers);
+  });
 
   beforeEach(() => {
     loginPage.logIn();
