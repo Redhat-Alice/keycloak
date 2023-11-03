@@ -97,6 +97,8 @@ public class Profile {
         DEVICE_FLOW("OAuth 2.0 Device Authorization Grant", Type.DEFAULT),
 
         TRANSIENT_USERS("Transient users for brokering", Type.EXPERIMENTAL),
+
+        MULTI_TENANCY("Development flag for multi-tenancy within a single keycloak realm", Type.EXPERIMENTAL)
         ;
 
         private final Type type;

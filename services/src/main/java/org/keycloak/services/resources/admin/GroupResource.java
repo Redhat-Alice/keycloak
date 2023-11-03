@@ -17,6 +17,7 @@
 package org.keycloak.services.resources.admin;
 
 import jakarta.ws.rs.DefaultValue;
+import java.util.Optional;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
@@ -73,13 +74,18 @@ public class GroupResource {
     private final AdminPermissionEvaluator auth;
     private final AdminEventBuilder adminEvent;
     private final GroupModel group;
+    private final Optional<String> tenant;
 
-    public GroupResource(RealmModel realm, GroupModel group, KeycloakSession session, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
+    // TODO TENANCY: most of these methods only need nuanced permission checks. But for creation and updating we need to have some assertions that make sure that
+    //  the hierarchy contains the correct tenant data && that we aren't moving a group across tenants w/o permission
+    //  (or we should just outright not allow this because what happens to the users)
+    public GroupResource(RealmModel realm, GroupModel group, KeycloakSession session, String tenant, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
         this.realm = realm;
         this.session = session;
         this.auth = auth;
         this.adminEvent = adminEvent.resource(ResourceType.GROUP);
         this.group = group;
+        this.tenant = Optional.ofNullable(tenant);
     }
 
      /**
@@ -93,6 +99,7 @@ public class GroupResource {
     @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
     @Operation()
     public GroupRepresentation getGroup() {
+        // TODO: if tenant is present then also evaluate tenant permissions of this group
         this.auth.groups().requireView(group);
 
         GroupRepresentation rep = GroupUtils.toRepresentation(this.auth.groups(), group, true);
@@ -112,6 +119,7 @@ public class GroupResource {
     @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
     @Operation( summary = "Update group, ignores subgroups.")
     public Response updateGroup(GroupRepresentation rep) {
+        //TODO: tenant permissions. We need to allow moving a group to tenant but can't remove here
         this.auth.groups().requireManage(group);
 
         String groupName = rep.getName();
@@ -145,6 +153,7 @@ public class GroupResource {
     @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
     @Operation()
     public void deleteGroup() {
+        // TODO: tenant permissions
         this.auth.groups().requireManage(group);
 
         realm.removeGroup(group);
@@ -160,6 +169,7 @@ public class GroupResource {
     public Stream<GroupRepresentation> getSubGroups(@QueryParam("first") @DefaultValue("0") Integer first,
         @QueryParam("max") @DefaultValue("10") Integer max,
         @QueryParam("briefRepresentation") @DefaultValue("false") Boolean full) {
+        // TODO tenant permissions
         this.auth.groups().requireView(group);
         boolean canViewGlobal = auth.groups().canView();
         return group.getSubGroupsStream(first, max)
@@ -181,7 +191,10 @@ public class GroupResource {
     @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
     @Operation( summary = "Set or create child.", description = "This will just set the parent if it exists. Create it and set the parent if the group doesn’t exist.")
     public Response addChild(GroupRepresentation rep) {
+        //TODO tenant permissions.
         this.auth.groups().requireManage(group);
+
+        // TODO enforce that all groups in the hierarchy belong to the tenant explicitly, if we were to partition the DB table on tenant ID then it should have ALL of the groups that belong to it
 
         String groupName = rep.getName();
         if (ObjectUtil.isBlank(groupName)) {
@@ -276,6 +289,7 @@ public class GroupResource {
 
     @Path("role-mappings")
     public RoleMapperResource getRoleMappings() {
+        //TODO tenant permissions
         AdminPermissionEvaluator.RequirePermissionCheck manageCheck = () -> auth.groups().requireManage(group);
         AdminPermissionEvaluator.RequirePermissionCheck viewCheck = () -> auth.groups().requireView(group);
         return new RoleMapperResource(session, auth, group, adminEvent, manageCheck, viewCheck);
@@ -304,6 +318,7 @@ public class GroupResource {
                                                  @Parameter(description = "Maximum results size (defaults to 100)") @QueryParam("max") Integer maxResults,
                                                  @Parameter(description = "Only return basic information (only guaranteed to return id, username, created, first and last name, email, enabled state, email verification state, federation link, and access. Note that it means that namely user attributes, required actions, and not before are not returned.)")
                                                      @QueryParam("briefRepresentation") Boolean briefRepresentation) {
+        //TODO tenant permissions
         this.auth.groups().requireViewMembers(group);
         
         firstResult = firstResult != null ? firstResult : 0;
@@ -328,6 +343,7 @@ public class GroupResource {
     @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
     @Operation( summary = "Return object stating whether client Authorization permissions have been initialized or not and a reference")
     public ManagementPermissionReference getManagementPermissions() {
+        //TODO tenant permissions
         auth.groups().requireView(group);
 
         AdminPermissionManagement permissions = AdminPermissions.management(session, realm);
@@ -360,6 +376,7 @@ public class GroupResource {
     @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
     @Operation( summary = "Return object stating whether client Authorization permissions have been initialized or not and a reference")
     public ManagementPermissionReference setManagementPermissionsEnabled(ManagementPermissionReference ref) {
+        // TODO tenant permissions
         auth.groups().requireManage(group);
         AdminPermissionManagement permissions = AdminPermissions.management(session, realm);
         permissions.groups().setPermissionsEnabled(group, ref.isEnabled());

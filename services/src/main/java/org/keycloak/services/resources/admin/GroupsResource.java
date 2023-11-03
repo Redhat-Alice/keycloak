@@ -31,11 +31,14 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.resteasy.annotations.cache.NoCache;
+import org.keycloak.common.Profile;
+import org.keycloak.common.Profile.Feature;
 import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
@@ -65,13 +68,14 @@ public class GroupsResource {
     private final KeycloakSession session;
     private final AdminPermissionEvaluator auth;
     private final AdminEventBuilder adminEvent;
+    private final Optional<String> tenant;
 
-    public GroupsResource(RealmModel realm, KeycloakSession session, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
+    public GroupsResource(RealmModel realm, KeycloakSession session, String tenantPlaceholder, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
         this.realm = realm;
         this.session = session;
         this.auth = auth;
         this.adminEvent = adminEvent.resource(ResourceType.GROUP);
-
+        tenant = Optional.ofNullable(tenantPlaceholder);
     }
 
     /**
@@ -93,6 +97,20 @@ public class GroupsResource {
                                                  @QueryParam("populateHierarchy") @DefaultValue("true") boolean populateHierarchy) {
         GroupPermissionEvaluator groupsEvaluator = auth.groups();
         groupsEvaluator.requireList();
+
+        String usableTenant = null;
+        if(tenant.isPresent()) {
+            if(!Profile.isFeatureEnabled(Feature.MULTI_TENANCY)) {
+                throw new UnsupportedOperationException("This feature is in development and not enabled on this server");
+            }
+            // TODO: We need to assess tenant permissions in addition to the realm permissions
+            usableTenant = tenant.get();
+            // this is a code stub. Really I think we should add a tenant group provider --> session.tenants().groups() (?)
+            // it makes sense that we'd want to limit the scope of the provider to either the realm or an individual tenant
+            // then we can change out which group provider we're working with
+
+            // alternatively we can just pass the tenant or null, it just adds another parameter and makes the code a bit harder to read
+        }
 
         Stream<GroupModel> stream;
         if (Objects.nonNull(searchQuery)) {
@@ -127,7 +145,7 @@ public class GroupsResource {
         if (group == null) {
             throw new NotFoundException("Could not find group by id");
         }
-        return new GroupResource(realm, group, session, this.auth, adminEvent);
+        return new GroupResource(realm, group, session, tenant.orElse(null), this.auth, adminEvent);
     }
 
     /**

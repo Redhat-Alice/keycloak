@@ -71,6 +71,7 @@ public class UserProfileResource {
     protected final RealmModel realm;
     private final AdminPermissionEvaluator auth;
 
+    //TODO tenant permissions for all of the endpoints here
     public UserProfileResource(KeycloakSession session, AdminPermissionEvaluator auth) {
         this.session = session;
         this.realm = session.getContext().getRealm();

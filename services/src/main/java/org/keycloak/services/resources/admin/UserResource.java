@@ -16,6 +16,7 @@
  */
 package org.keycloak.services.resources.admin;
 
+import java.util.Optional;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
@@ -156,8 +157,10 @@ public class UserResource {
     protected final KeycloakSession session;
 
     protected final HttpHeaders headers;
+
+    private final Optional<String> tenant;
     
-    public UserResource(KeycloakSession session, UserModel user, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
+    public UserResource(KeycloakSession session, UserModel user, String tenant, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
         this.session = session;
         this.auth = auth;
         this.realm = session.getContext().getRealm();
@@ -165,6 +168,7 @@ public class UserResource {
         this.user = user;
         this.adminEvent = adminEvent.resource(ResourceType.USER);
         this.headers = session.getContext().getRequestHeaders();
+        this.tenant = Optional.of(tenant);
     }
     
     /**

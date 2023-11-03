@@ -121,6 +121,16 @@ public enum ResourceType {
     /**
      *
      */
+    , TENANT_MEMBERSHIP
+
+    /**
+     *
+     */
+    , TENANT
+
+    /**
+     *
+     */
     , CLIENT
 
     /**

@@ -45,6 +45,7 @@ public class KeycloakOpenAPI {
             public static final String CLIENT_SCOPES = "Client Scopes";
             public static final String COMPONENT = "Component";
             public static final String GROUPS = "Groups";
+            public static final String TENANTS = "Tenants";
             public static final String IDENTITY_PROVIDERS = "Identity Providers";
             public static final String KEY = "Key";
             public static final String PROTOCOL_MAPPERS = "Protocol Mappers";

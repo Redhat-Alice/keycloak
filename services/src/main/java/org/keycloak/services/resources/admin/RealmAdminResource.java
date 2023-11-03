@@ -503,7 +503,7 @@ public class RealmAdminResource {
      */
     @Path("users")
     public UsersResource users() {
-        return new UsersResource(session, auth, adminEvent);
+        return new UsersResource(session, null, auth, adminEvent);
     }
 
     @NoCache

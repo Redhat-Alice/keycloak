@@ -98,14 +98,17 @@ public class UsersResource {
     protected final KeycloakSession session;
 
     protected final HttpHeaders headers;
+    private final Optional<String> tenant;
 
-    public UsersResource(KeycloakSession session, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
+
+    public UsersResource(KeycloakSession session, String tenant, AdminPermissionEvaluator auth, AdminEventBuilder adminEvent) {
         this.session = session;
         this.clientConnection = session.getContext().getConnection();
         this.auth = auth;
         this.realm = session.getContext().getRealm();
         this.adminEvent = adminEvent.resource(ResourceType.USER);
         this.headers = session.getContext().getRequestHeaders();
+        this.tenant = Optional.ofNullable(tenant);
     }
 
     /**
@@ -123,13 +126,15 @@ public class UsersResource {
     public Response createUser(final UserRepresentation rep) {
         // first check if user has manage rights
         try {
+            //TODO tenant users permissions
             auth.users().requireManage();
         } catch (ForbiddenException exception) {
             if (!canCreateGroupMembers(rep)) {
                 throw exception;
             }
         }
-
+        // TODO tenancy, assert that user has an associated tenant ID and permissions if they get created on a tenant
+        // TODO tenancy, assert that username is unique within a tenant and realm, but don't check across tenants (or usernames are no longer unique)
         String username = rep.getUsername();
         if(realm.isRegistrationEmailAsUsername()) {
             username = rep.getEmail();
@@ -196,6 +201,7 @@ public class UsersResource {
     }
 
     private boolean canCreateGroupMembers(UserRepresentation rep) {
+        // TODO tenancy permissions evaluations
         if (!Profile.isFeatureEnabled(Profile.Feature.ADMIN_FINE_GRAINED_AUTHZ)) {
             return false;
         }
@@ -242,7 +248,7 @@ public class UsersResource {
             else throw new ForbiddenException();
         }
 
-        return new UserResource(session, user, auth, adminEvent);
+        return new UserResource(session, user, tenant.orElse(null), auth, adminEvent);
     }
 
     /**
@@ -286,6 +292,7 @@ public class UsersResource {
             @Parameter(description = "Boolean which defines whether brief representations are returned (default: false)") @QueryParam("briefRepresentation") Boolean briefRepresentation,
             @Parameter(description = "Boolean which defines whether the params \"last\", \"first\", \"email\" and \"username\" must match exactly") @QueryParam("exact") Boolean exact,
             @Parameter(description = "A query to search for custom attributes, in the format 'key1:value2 key2:value2'") @QueryParam("q") String searchQuery) {
+        // TODO tenancy permissions
         UserPermissionEvaluator userPermissionEvaluator = auth.users();
 
         userPermissionEvaluator.requireQuery();
@@ -297,6 +304,7 @@ public class UsersResource {
                 ? Collections.emptyMap()
                 : SearchQueryUtils.getFields(searchQuery);
 
+        // TODO allow limiting the search to the tenant if it's present
         Stream<UserModel> userModels = Stream.empty();
         if (search != null) {
             if (search.startsWith(SEARCH_ID_PARAMETER)) {
@@ -400,6 +408,7 @@ public class UsersResource {
             @Parameter(description = "username filter") @QueryParam("username") String username,
             @Parameter(description = "Boolean representing if user is enabled or not") @QueryParam("enabled") Boolean enabled,
             @QueryParam("q") String searchQuery) {
+        // TODO tenant permissions
         UserPermissionEvaluator userPermissionEvaluator = auth.users();
         userPermissionEvaluator.requireQuery();
 
@@ -407,6 +416,7 @@ public class UsersResource {
                 ? Collections.emptyMap()
                 : SearchQueryUtils.getFields(searchQuery);
 
+        //TODO tenant limit the results of the count to just the tenant if it's present
         if (search != null) {
             if (search.startsWith(SEARCH_ID_PARAMETER)) {
                 UserModel userModel = session.users().getUserById(realm, search.substring(SEARCH_ID_PARAMETER.length()).trim());
