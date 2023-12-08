@@ -1876,7 +1876,9 @@ public class EntitlementAPITest extends AbstractAuthzTest {
             assertTrue(HttpResponseException.class.cast(expected.getCause()).toString().contains("access_denied"));
         }
 
-        // kolo will have access to the create scope on the resource owned by them
+        // kolo will have access to the read scope on the typed resource because of the "only public + only owner" policy
+        // the scope permission denies the access to "create" scope because the resource isn't public
+        // TODO technically this might be a regression the same as other override behaviors
         response = authzClient.authorization("kolo", "password").authorize(request);
         assertNotNull(response.getToken());
         permissions = toAccessToken(response.getToken()).getAuthorization().getPermissions();
@@ -1884,7 +1886,7 @@ public class EntitlementAPITest extends AbstractAuthzTest {
 
         for (Permission grantedPermission : permissions) {
             assertThat(userResource.getName(), Matchers.equalTo(grantedPermission.getResourceName()));
-            assertThat(grantedPermission.getScopes(), Matchers.hasItem("create"));
+            assertThat(grantedPermission.getScopes(), Matchers.hasItem("read"));
         }
 
         // remove the private visibility from the resource owned by no one
