@@ -16,15 +16,7 @@
  */
 package org.keycloak.models.cache.infinispan.authorization;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -49,23 +41,7 @@ import org.keycloak.models.KeycloakTransaction;
 import org.keycloak.models.ModelException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.cache.authorization.CachedStoreFactoryProvider;
-import org.keycloak.models.cache.infinispan.authorization.entities.CachedPermissionTicket;
-import org.keycloak.models.cache.infinispan.authorization.entities.CachedPolicy;
-import org.keycloak.models.cache.infinispan.authorization.entities.CachedResource;
-import org.keycloak.models.cache.infinispan.authorization.entities.CachedResourceServer;
-import org.keycloak.models.cache.infinispan.authorization.entities.CachedScope;
-import org.keycloak.models.cache.infinispan.authorization.entities.PermissionTicketListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.PermissionTicketQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.PermissionTicketResourceListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.PermissionTicketScopeListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.PolicyListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.PolicyQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.PolicyResourceListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.PolicyScopeListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.ResourceListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.ResourceQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.ResourceScopeListQuery;
-import org.keycloak.models.cache.infinispan.authorization.entities.ScopeListQuery;
+import org.keycloak.models.cache.infinispan.authorization.entities.*;
 import org.keycloak.models.cache.infinispan.authorization.events.PermissionTicketRemovedEvent;
 import org.keycloak.models.cache.infinispan.authorization.events.PermissionTicketUpdatedEvent;
 import org.keycloak.models.cache.infinispan.authorization.events.PolicyRemovedEvent;
@@ -399,6 +375,10 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
 
     public static String getPolicyByResourceScope(String scope, String resourceId, String serverId) {
         return "policy.resource. " + resourceId + ".scope." + scope + "." + serverId;
+    }
+
+    public static String getPoliciesByTypeResourceScope(String resourceId, String scopes, String serverId) {
+        return "policy.resource. " + resourceId + ".scopes." + scopes + "." + serverId;
     }
 
     public static String getPermissionTicketByResource(String resourceId, String serverId) {
@@ -1049,6 +1029,25 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
         }
 
         @Override
+        public void findRelevantPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, Consumer<Policy> consumer) {
+            String resourceServerId = resourceServer == null ? null : resourceServer.getId();
+            String resourceId = resource == null ? null : resource.getId();
+            Set<String> scopeIds = scopes == null ? new HashSet<>() : scopes.stream().map(Scope::getId).collect(Collectors.toSet());
+
+            String cacheKey = getPoliciesByTypeResourceScope(resourceId, String.join(",", scopeIds), resourceServerId);
+            cacheQuery(cacheKey, PolicyResourceScopeTypeListQuery.class, () -> {
+                List<Policy> policies = new ArrayList<>();
+                getPolicyStoreDelegate().findRelevantPolicies(resourceServer, resource, scopes,
+                        policy -> {
+                            consumer.andThen(policies::add)
+                                    .andThen(StoreFactoryCacheSession.this::cachePolicy)
+                                    .accept(policy);
+                        });
+                return policies;
+            }, (revision, resources) -> new PolicyResourceScopeTypeListQuery(revision, cacheKey, resourceId, scopeIds, resources.stream().map(Policy::getId).collect(Collectors.toSet()), resourceServerId), resourceServer, consumer);
+        }
+
+        @Override
         public List<Policy> findByType(ResourceServer resourceServer, String type) {
             return getPolicyStoreDelegate().findByType(resourceServer, type);
         }
@@ -1076,11 +1075,13 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
                 Long loaded = cache.getCurrentRevision(cacheKey);
                 model = resultSupplier.get();
                 if (model == null) return null;
-                if (!invalidations.contains(cacheKey)) {
-                    query = querySupplier.apply(loaded, model);
+
+                query = querySupplier.apply(loaded, model);
+                if (!invalidations.contains(cacheKey) && !query.isInvalid(invalidations)) {
                     cache.addRevisioned(query, startupRevision);
                 }
             } else if (query.isInvalid(invalidations)) {
+                invalidations.add(cacheKey);
                 model = resultSupplier.get();
             } else {
                 cacheResults = false;

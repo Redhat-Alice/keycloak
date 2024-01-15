@@ -66,33 +66,7 @@ public class DefaultPolicyEvaluator implements PolicyEvaluator {
         Collection<Scope> scopes = permission.getScopes();
         Resource resource = permission.getResource();
 
-        if(scopes != null) {
-            if (resource != null) {
-                policyStore.findByScopes(resourceServer, resource, new LinkedList<>(scopes), policyConsumer);
-            }
-
-            policyStore.findByScopes(resourceServer, null, new LinkedList<>(scopes), policyConsumer);
-        }
-
-        if(resource != null) {
-            // get type policies that are explicitly not linked to any resources
-            if(resource.getType() != null) {
-                // evaluate policies explicitly set with a resource type
-                policyStore.findByResourceType(resourceServer, true, resource.getType(), policyConsumer);
-
-                if (!resource.getOwner().equals(resourceServer.getClientId())) {
-                    // evaluate permissions for typed-resources owned by the resource server itself
-                    ResourceStore resourceStore = authorizationProvider.getStoreFactory().getResourceStore();
-
-                    for (Resource typedResource : resourceStore.findByType(resourceServer, resource.getType())) {
-                        policyStore.findByResource(resourceServer, true, typedResource, policyConsumer);
-                    }
-                }
-            }
-
-            // get resource policies that are explicitly not linked to any scopes but are to the resource
-            policyStore.findByResource(resourceServer, false, resource, policyConsumer);
-        }
+        policyStore.findRelevantPolicies(resourceServer, resource, scopes, policyConsumer);
 
         if (verified.get()) {
             decision.onComplete(permission);

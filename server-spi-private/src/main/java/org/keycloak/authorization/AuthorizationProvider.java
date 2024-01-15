@@ -17,6 +17,7 @@
 
 package org.keycloak.authorization;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -427,6 +428,11 @@ public final class AuthorizationProvider implements Provider {
             @Override
             public void findByScopes(ResourceServer resourceServer, Resource resource, List<Scope> scopes, Consumer<Policy> consumer) {
                 policyStore.findByScopes(resourceServer, resource, scopes, consumer);
+            }
+
+            @Override
+            public void findRelevantPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, Consumer<Policy> consumer) {
+                policyStore.findRelevantPolicies(resourceServer, resource, scopes, consumer);
             }
 
             @Override
