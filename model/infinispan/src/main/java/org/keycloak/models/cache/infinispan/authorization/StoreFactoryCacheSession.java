@@ -35,6 +35,7 @@ import org.keycloak.authorization.store.ResourceServerStore;
 import org.keycloak.authorization.store.ResourceStore;
 import org.keycloak.authorization.store.ScopeStore;
 import org.keycloak.authorization.store.StoreFactory;
+import org.keycloak.common.util.CollectionUtil;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakTransaction;
@@ -375,10 +376,6 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
 
     public static String getPolicyByResourceScope(String scope, String resourceId, String serverId) {
         return "policy.resource. " + resourceId + ".scope." + scope + "." + serverId;
-    }
-
-    public static String getPoliciesByTypeResourceScope(String resourceId, String scopes, String serverId) {
-        return "policy.resource. " + resourceId + ".scopes." + scopes + "." + serverId;
     }
 
     public static String getPermissionTicketByResource(String resourceId, String serverId) {
@@ -963,12 +960,12 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
         }
 
         @Override
-        public void findByResourceType(ResourceServer resourceServer, boolean withResourceType, String resourceType, Consumer<Policy> consumer) {
+        public void findByResourceType(ResourceServer resourceServer, boolean nullResourceOnly, String resourceType, Consumer<Policy> consumer) {
             String resourceServerId = resourceServer == null ? null : resourceServer.getId();
-            String cacheKey = getPolicyByResourceType(resourceType, resourceServerId, withResourceType);
+            String cacheKey = getPolicyByResourceType(resourceType, resourceServerId, nullResourceOnly);
             cacheQuery(cacheKey, PolicyResourceListQuery.class, () -> {
                         List<Policy> policies = new ArrayList<>();
-                        getPolicyStoreDelegate().findByResourceType(resourceServer, withResourceType, resourceType, new Consumer<Policy>() {
+                        getPolicyStoreDelegate().findByResourceType(resourceServer, nullResourceOnly, resourceType, new Consumer<Policy>() {
                             @Override
                             public void accept(Policy policy) {
                                 consumer.andThen(policies::add)
@@ -1029,22 +1026,132 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
         }
 
         @Override
-        public void findRelevantPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, Consumer<Policy> consumer) {
+        public void findResourcePermissionPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, String resourceType, boolean resourceServerPolicies, Consumer<Policy> consumer) {
             String resourceServerId = resourceServer == null ? null : resourceServer.getId();
             String resourceId = resource == null ? null : resource.getId();
-            Set<String> scopeIds = scopes == null ? new HashSet<>() : scopes.stream().map(Scope::getId).collect(Collectors.toSet());
+            scopes = scopes == null ? new HashSet<>() : scopes;
 
-            String cacheKey = getPoliciesByTypeResourceScope(resourceId, String.join(",", scopeIds), resourceServerId);
-            cacheQuery(cacheKey, PolicyResourceScopeTypeListQuery.class, () -> {
-                List<Policy> policies = new ArrayList<>();
-                getPolicyStoreDelegate().findRelevantPolicies(resourceServer, resource, scopes,
-                        policy -> {
-                            consumer.andThen(policies::add)
-                                    .andThen(StoreFactoryCacheSession.this::cachePolicy)
-                                    .accept(policy);
+            Set<Policy> cachedTypePolicies = new HashSet<>();
+            Set<Policy> cachedResourcePolicies = new HashSet<>();
+            Map<Scope, Set<Policy>> cachedScopePolicies = new HashMap<>();
+            Map<Scope, String> scopeToCacheKey = new HashMap<>();
+
+            String resourceTypeCacheKey;
+            String resourceCacheKey;
+
+            // load all relevant cache keys and search the cache for existing entries
+            if (resource != null) {
+                if (resource.getType() != null) {
+                    if(resourceServerPolicies) {
+                        resourceTypeCacheKey = getPolicyByResourceType(resourceType, resourceServerId, false);
+                    } else {
+                        resourceTypeCacheKey = getPolicyByResourceType(resourceType, resourceServerId, true);
+                    }
+                    PolicyResourceListQuery typeQuery = cache.get(resourceTypeCacheKey, PolicyResourceListQuery.class);
+                    if(typeQuery != null) {
+                        cachedTypePolicies = typeQuery.getPolicies().stream().map(id -> findById(InfinispanCacheStoreFactoryProviderFactory.NULL_REALM, resourceServer, id))
+                                .filter(Objects::nonNull).collect(Collectors.toSet());
+                    }
+                } else {
+                    resourceTypeCacheKey = null;
+                }
+                resourceCacheKey = getPolicyByResource(resource.getId(), resourceServerId, true);
+                PolicyResourceListQuery resourceQuery = cache.get(resourceCacheKey, PolicyResourceListQuery.class);
+                if(resourceQuery != null) {
+                    cachedResourcePolicies = resourceQuery.getPolicies().stream().map(id -> findById(InfinispanCacheStoreFactoryProviderFactory.NULL_REALM, resourceServer, id))
+                            .filter(Objects::nonNull).collect(Collectors.toSet());
+                }
+            } else {
+                resourceTypeCacheKey = null;
+                resourceCacheKey = null;
+            }
+            for (Scope scope : scopes) {
+                String cacheKey = getPolicyByResourceScope(scope.getId(), resourceId, resourceServerId);
+                scopeToCacheKey.put(scope, cacheKey);
+                PolicyScopeListQuery scopeQuery = cache.get(cacheKey, PolicyScopeListQuery.class);
+                if(scopeQuery != null ) {
+                    cachedScopePolicies.put(scope, scopeQuery.getPolicies().stream().map(id -> findById(InfinispanCacheStoreFactoryProviderFactory.NULL_REALM, resourceServer, id))
+                            .filter(Objects::nonNull).collect(Collectors.toSet()));
+                }
+            }
+
+            // we've now checked the cache for our results we should only query for what we don't have
+            Collection<Scope> delegateScopes = new HashSet<>(scopes);
+            delegateScopes.removeAll(cachedScopePolicies.keySet());
+
+            Resource delegateResource;
+            if(cachedResourcePolicies.isEmpty()) {
+                delegateResource = resource;
+            } else {
+                delegateResource = null;
+            }
+
+            String delegateResourceType;
+            if(cachedTypePolicies.isEmpty()) {
+                delegateResourceType = resourceType;
+            } else {
+                delegateResourceType = null;
+            }
+
+
+            // delegate anything that wasn't in the cache to the database, cache the resulting policies
+            List<Policy> delegateResults = new ArrayList<>();
+            if(delegateResourceType != null || delegateResource != null || !delegateScopes.isEmpty()) {
+                getPolicyStoreDelegate().findResourcePermissionPolicies(resourceServer, delegateResource, delegateScopes, delegateResourceType, resourceServerPolicies, consumer.andThen(delegateResults::add).andThen(StoreFactoryCacheSession.this::cachePolicy));
+            }
+
+            // also process the policies we got from the cache, these just go to the consumer with no other processing
+            Set<Policy> policies = cachedScopePolicies.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+            policies.addAll(cachedTypePolicies);
+            policies.addAll(cachedResourcePolicies);
+            policies.forEach(consumer);
+
+            // go through the result policies from the database and add the relevant cache entries based on what they have
+            Map<String, PolicyListQuery> resourceCacheUpdate = new HashMap<>();
+
+            for (Policy delegateResult : delegateResults) {
+
+                for(Scope scope : delegateResult.getScopes()) {
+                    if(delegateScopes.contains(scope)) {
+                        resourceCacheUpdate.compute(scopeToCacheKey.get(scope), (key, value) -> {
+                            if(value == null) {
+                                Long loaded = cache.getCurrentRevision(scopeToCacheKey.get(scope));
+                                return new PolicyScopeListQuery(loaded, scopeToCacheKey.get(scope), scope.getId(), delegateResult.getId(), resourceServerId);
+                            }
+                            value.getPolicies().add(delegateResult.getId());
+                            return value;
                         });
-                return policies;
-            }, (revision, resources) -> new PolicyResourceScopeTypeListQuery(revision, cacheKey, resourceId, scopeIds, resources.stream().map(Policy::getId).collect(Collectors.toSet()), resourceServerId), resourceServer, consumer);
+                    }
+                }
+
+                if(delegateResource != null && delegateResult.getResources().stream().map(Resource::getId).anyMatch(id -> id.equals(delegateResource.getId()))) {
+                    resourceCacheUpdate.compute(resourceCacheKey, (key, value) -> {
+                        if(value == null) {
+                            Long loaded = cache.getCurrentRevision(resourceCacheKey);
+                            return new PolicyResourceListQuery(loaded, resourceCacheKey, delegateResource.getId(), delegateResult.getId(), resourceServerId);
+                        }
+                        value.getPolicies().add(delegateResult.getId());
+                        return value;
+                    });
+                }
+
+                if(delegateResourceType != null && delegateResult.getConfig() != null && delegateResourceType.equals(delegateResult.getConfig().get("defaultResourceType"))) {
+                    resourceCacheUpdate.compute(resourceTypeCacheKey, (key, value) -> {
+                        if(value == null) {
+                            Long loaded = cache.getCurrentRevision(resourceTypeCacheKey);
+                            return new PolicyResourceListQuery(loaded, resourceTypeCacheKey, delegateResourceType, delegateResult.getId(), resourceServerId);
+                        }
+                        value.getPolicies().add(delegateResult.getId());
+                        return value;
+                    });
+                }
+            }
+
+            resourceCacheUpdate.forEach((key, value) -> {
+                if (!invalidations.contains(key) && !value.isInvalid(invalidations)) {
+                    cache.addRevisioned(value, startupRevision);
+                }
+            });
         }
 
         @Override

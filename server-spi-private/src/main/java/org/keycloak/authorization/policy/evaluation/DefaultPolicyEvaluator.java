@@ -19,7 +19,6 @@
 package org.keycloak.authorization.policy.evaluation;
 
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -33,7 +32,6 @@ import org.keycloak.authorization.model.Scope;
 import org.keycloak.authorization.permission.ResourcePermission;
 import org.keycloak.authorization.policy.provider.PolicyProvider;
 import org.keycloak.authorization.store.PolicyStore;
-import org.keycloak.authorization.store.ResourceStore;
 import org.keycloak.authorization.store.StoreFactory;
 import org.keycloak.representations.idm.authorization.PolicyEnforcementMode;
 
@@ -65,8 +63,12 @@ public class DefaultPolicyEvaluator implements PolicyEvaluator {
         Consumer<Policy> policyConsumer = createPolicyEvaluator(permission, authorizationProvider, executionContext, decision, verified, decisionCache);
         Collection<Scope> scopes = permission.getScopes();
         Resource resource = permission.getResource();
+        String owner = resource == null ? "" : resource.getOwner();
+        String resourceType = resource == null ? null : resource.getType();
 
-        policyStore.findRelevantPolicies(resourceServer, resource, scopes, policyConsumer);
+        // TODO change the inclusion of resource server policies with an additional resource server flag in addition to owner matching client id
+        // the current implementation of tests are built off of a redundant query on type policies so tests need to be fixed to support this feature properly
+        policyStore.findResourcePermissionPolicies(resourceServer, resource, scopes, resourceType, true, policyConsumer);
 
         if (verified.get()) {
             decision.onComplete(permission);

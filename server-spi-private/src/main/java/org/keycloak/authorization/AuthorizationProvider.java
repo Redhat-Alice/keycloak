@@ -431,8 +431,8 @@ public final class AuthorizationProvider implements Provider {
             }
 
             @Override
-            public void findRelevantPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, Consumer<Policy> consumer) {
-                policyStore.findRelevantPolicies(resourceServer, resource, scopes, consumer);
+            public void findResourcePermissionPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, String resourceType, boolean resourceServerPolicies, Consumer<Policy> consumer) {
+                policyStore.findResourcePermissionPolicies(resourceServer, resource, scopes, resourceType, resourceServerPolicies, consumer);
             }
 
             @Override
@@ -446,8 +446,8 @@ public final class AuthorizationProvider implements Provider {
             }
 
             @Override
-            public void findByResourceType(ResourceServer resourceServer, boolean withResourceType, String type, Consumer<Policy> policyConsumer) {
-                policyStore.findByResourceType(resourceServer, withResourceType, type, policyConsumer);
+            public void findByResourceType(ResourceServer resourceServer, boolean nullResourceOnly, String type, Consumer<Policy> policyConsumer) {
+                policyStore.findByResourceType(resourceServer, nullResourceOnly, type, policyConsumer);
             }
         };
     }

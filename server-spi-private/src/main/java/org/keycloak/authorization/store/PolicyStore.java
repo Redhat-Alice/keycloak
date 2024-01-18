@@ -144,7 +144,7 @@ public interface PolicyStore {
      * @param type the type of a resource
      * @param policyConsumer consumer of policies resulted from the search
      */
-    void findByResourceType(ResourceServer resourceServer, boolean withResourceType, String type, Consumer<Policy> policyConsumer);
+    void findByResourceType(ResourceServer resourceServer, boolean nullResourceOnly, String type, Consumer<Policy> policyConsumer);
 
     /**
      * Returns a list of {@link Policy} associated with a {@link org.keycloak.authorization.model.Scope} within the given <code>scope</code>.
@@ -186,7 +186,7 @@ public interface PolicyStore {
      * @param scopes the scopes to be queried
      * @param consumer the consumer to handle the results
      */
-    void findRelevantPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, Consumer<Policy> consumer);
+    void findResourcePermissionPolicies(ResourceServer resourceServer, Resource resource, Collection<Scope> scopes, String resourceType, boolean resourceServerPolicies, Consumer<Policy> consumer);
 
     /**
      * Returns a list of {@link Policy} with the given <code>type</code>.
