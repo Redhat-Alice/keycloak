@@ -66,9 +66,9 @@ public class DefaultPolicyEvaluator implements PolicyEvaluator {
         String owner = resource == null ? "" : resource.getOwner();
         String resourceType = resource == null ? null : resource.getType();
 
-        // TODO change the inclusion of resource server policies with an additional resource server flag in addition to owner matching client id
-        // the current implementation of tests are built off of a redundant query on type policies so tests need to be fixed to support this feature properly
-        policyStore.findResourcePermissionPolicies(resourceServer, resource, scopes, resourceType, true, policyConsumer);
+        // we toggle the evaluation of resource server policies on when the owner of the current resource is not the resource server
+        // TODO turn this feature off by default on the resource server and allow for configuration on admin console
+        policyStore.findResourcePermissionPolicies(resourceServer, resource, scopes, resourceType, !owner.equals(resourceServer.getClientId()), policyConsumer);
 
         if (verified.get()) {
             decision.onComplete(permission);

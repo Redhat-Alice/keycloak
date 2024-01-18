@@ -1034,7 +1034,9 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
             Set<Policy> cachedTypePolicies = new HashSet<>();
             Set<Policy> cachedResourcePolicies = new HashSet<>();
             Map<Scope, Set<Policy>> cachedScopePolicies = new HashMap<>();
+
             Map<Scope, String> scopeToCacheKey = new HashMap<>();
+            Map<Scope, String> scopeToNullResourceKey = new HashMap<>();
 
             String resourceTypeCacheKey;
             String resourceCacheKey;
@@ -1065,8 +1067,10 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
                 resourceTypeCacheKey = null;
                 resourceCacheKey = null;
             }
+
+            // go through our scopes and get the ones for a null resource, we only db query for scopes with no associated resource
             for (Scope scope : scopes) {
-                String cacheKey = getPolicyByResourceScope(scope.getId(), resourceId, resourceServerId);
+                String cacheKey = getPolicyByResourceScope(scope.getId(), null, resourceServerId);
                 scopeToCacheKey.put(scope, cacheKey);
                 PolicyScopeListQuery scopeQuery = cache.get(cacheKey, PolicyScopeListQuery.class);
                 if(scopeQuery != null ) {
@@ -1093,64 +1097,78 @@ public class StoreFactoryCacheSession implements CachedStoreFactoryProvider {
                 delegateResourceType = null;
             }
 
-
-            // delegate anything that wasn't in the cache to the database, cache the resulting policies
-            List<Policy> delegateResults = new ArrayList<>();
-            if(delegateResourceType != null || delegateResource != null || !delegateScopes.isEmpty()) {
-                getPolicyStoreDelegate().findResourcePermissionPolicies(resourceServer, delegateResource, delegateScopes, delegateResourceType, resourceServerPolicies, consumer.andThen(delegateResults::add).andThen(StoreFactoryCacheSession.this::cachePolicy));
-            }
-
-            // also process the policies we got from the cache, these just go to the consumer with no other processing
+            // combine cache results to remove duplicates and process them
             Set<Policy> policies = cachedScopePolicies.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
             policies.addAll(cachedTypePolicies);
             policies.addAll(cachedResourcePolicies);
             policies.forEach(consumer);
 
-            // go through the result policies from the database and add the relevant cache entries based on what they have
-            Map<String, PolicyListQuery> resourceCacheUpdate = new HashMap<>();
+            // delegate anything that wasn't in the cache to the database, cache the resulting policies
+            List<Policy> delegateResults = new ArrayList<>();
+            if(delegateResourceType != null || delegateResource != null || !delegateScopes.isEmpty()) {
+                getPolicyStoreDelegate().findResourcePermissionPolicies(resourceServer, delegateResource, delegateScopes,
+                        delegateResourceType, resourceServerPolicies,
+                        consumer.andThen(delegateResults::add).andThen(StoreFactoryCacheSession.this::cachePolicy));
+            }
 
+            // build new revisions for the cache
+            Map<String, PolicyListQuery> cacheKeyToRevisions = new HashMap<>();
             for (Policy delegateResult : delegateResults) {
+                // cache any policy that relates to the resource queried for, will overlap with our type policies and scope policies to cover gaps
+                if(delegateResource != null && delegateResult.getResources().stream().map(Resource::getId).anyMatch(id -> id.equals(delegateResource.getId()))) {
+                    updateResourcePermissionCache(cacheKeyToRevisions, resourceCacheKey, delegateResource.getId(), delegateResult.getId(), resourceServerId);
+                }
 
-                for(Scope scope : delegateResult.getScopes()) {
-                    if(delegateScopes.contains(scope)) {
-                        resourceCacheUpdate.compute(scopeToCacheKey.get(scope), (key, value) -> {
-                            if(value == null) {
-                                Long loaded = cache.getCurrentRevision(scopeToCacheKey.get(scope));
-                                return new PolicyScopeListQuery(loaded, scopeToCacheKey.get(scope), scope.getId(), delegateResult.getId(), resourceServerId);
-                            }
-                            value.getPolicies().add(delegateResult.getId());
-                            return value;
-                        });
+                // only cache on scope results when policy has no resources to make sure the cache stays consistent with the results
+                if(delegateResult.getResources().isEmpty()) {
+                    // scopes also should be missing this field to match the db query, this is unexpected but needed to pass existing tests
+                    if(delegateResult.getConfig() == null && delegateResult.getConfig().get("defaultResourceType") == null) {
+                        delegateResult.getScopes().stream().filter(delegateScopes::contains).forEach(scope ->
+                                updateScopePermissionCache(cacheKeyToRevisions, scopeToCacheKey.get(scope), scope.getId(), delegateResult.getId(), resourceServerId)
+                        );
                     }
                 }
 
-                if(delegateResource != null && delegateResult.getResources().stream().map(Resource::getId).anyMatch(id -> id.equals(delegateResource.getId()))) {
-                    resourceCacheUpdate.compute(resourceCacheKey, (key, value) -> {
-                        if(value == null) {
-                            Long loaded = cache.getCurrentRevision(resourceCacheKey);
-                            return new PolicyResourceListQuery(loaded, resourceCacheKey, delegateResource.getId(), delegateResult.getId(), resourceServerId);
-                        }
-                        value.getPolicies().add(delegateResult.getId());
-                        return value;
-                    });
-                }
-
-                if(delegateResourceType != null && delegateResult.getConfig() != null && delegateResourceType.equals(delegateResult.getConfig().get("defaultResourceType"))) {
-                    resourceCacheUpdate.compute(resourceTypeCacheKey, (key, value) -> {
-                        if(value == null) {
-                            Long loaded = cache.getCurrentRevision(resourceTypeCacheKey);
-                            return new PolicyResourceListQuery(loaded, resourceTypeCacheKey, delegateResourceType, delegateResult.getId(), resourceServerId);
-                        }
-                        value.getPolicies().add(delegateResult.getId());
-                        return value;
-                    });
+                // cache only the type policies that match the query, but there are two branches
+                if(delegateResourceType != null) {
+                    // this is normal type policy matching on the 'defaultResourceType' field in the config
+                    if(delegateResult.getConfig() != null && delegateResourceType.equals(delegateResult.getConfig().get("defaultResourceType"))) {
+                        updateResourcePermissionCache(cacheKeyToRevisions, resourceTypeCacheKey, delegateResourceType, delegateResult.getId(), resourceServerId);
+                    }
+                    // when resource server policies are enabled then we need to cache any result that has a resource that matches the type
+                    else if(resourceServerPolicies && delegateResult.getResources().stream().anyMatch(policy -> resource.getType().equals(delegateResourceType))) {
+                        updateResourcePermissionCache(cacheKeyToRevisions, resourceTypeCacheKey, delegateResourceType, delegateResult.getId(), resourceServerId);
+                    }
                 }
             }
 
-            resourceCacheUpdate.forEach((key, value) -> {
+            // finally update the cache with our built out revisions
+            cacheKeyToRevisions.forEach((key, value) -> {
                 if (!invalidations.contains(key) && !value.isInvalid(invalidations)) {
                     cache.addRevisioned(value, startupRevision);
                 }
+            });
+        }
+
+        private void updateResourcePermissionCache(Map<String, PolicyListQuery> cacheUpdate, String cacheKey, String queryId, String policyId, String resourceServerId) {
+            cacheUpdate.compute(cacheKey, (key, value) -> {
+                if(value == null) {
+                    Long loaded = cache.getCurrentRevision(cacheKey);
+                    return new PolicyResourceListQuery(loaded, cacheKey, queryId, policyId, resourceServerId);
+                }
+                value.getPolicies().add(policyId);
+                return value;
+            });
+        }
+
+        private void updateScopePermissionCache(Map<String, PolicyListQuery> cacheUpdate, String cacheKey, String queryId, String policyId, String resourceServerId) {
+            cacheUpdate.compute(cacheKey, (key, value) -> {
+                if(value == null) {
+                    Long loaded = cache.getCurrentRevision(cacheKey);
+                    return new PolicyScopeListQuery(loaded, cacheKey, queryId, policyId, resourceServerId);
+                }
+                value.getPolicies().add(policyId);
+                return value;
             });
         }
 

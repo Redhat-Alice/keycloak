@@ -326,28 +326,28 @@ public class JPAPolicyStore implements PolicyStore {
 
             // when this feature is enabled we should also get the policies from other resources on the server that match the resource type
             if(resourceServerPolicies) {
-                typePredicates.add(
-                        cb.like(resourceJoin.get("type"), resourceType)
+                // only applies to resources on the same resource server that are owned by the resource server and match the type
+                Predicate basePredicate = cb.and(
+                        cb.like(resourceJoin.get("type"), resourceType),
+                        cb.equal(resourceJoin.get("resourceServer"), resourceServer.getId()),
+                        cb.equal(resourceJoin.get("owner"), resourceServer.getClientId())
                 );
+
+                // if we have a resource then don't duplicate those results, only get policies from other resources
+                if(resource != null) {
+                    basePredicate = cb.and(basePredicate, cb.notEqual(resourceJoin.get("id"), resource.getId()));
+                }
+                typePredicates.add(basePredicate);
             }
 
-            // always get policies that match the resource type
+            // always get policies that match the resource type with no resource entries
             typePredicates.add(cb.and(
+                    cb.isEmpty(root.get("resources")),
                     cb.equal(policyConfigJoin.key(), "defaultResourceType"),
                     cb.like(policyConfigJoin.value(), resourceType)
             ));
 
-            // either/or of the above queries AND don't duplicate resource results
-            if(resource != null) {
-                predicates.add(cb.and(
-                        cb.or(cb.notEqual(resourceJoin.get("id"), resource.getId()), cb.isEmpty(root.get("resources"))),
-                        cb.or(typePredicates.toArray(new Predicate[0]))
-                ));
-            } else {
-                predicates.add(
-                        cb.or(typePredicates.toArray(new Predicate[0]))
-                );
-            }
+            predicates.add(cb.or(typePredicates.toArray(new Predicate[0])));
         }
 
         // by or'ing our predicates together we select all relevant policies for the resource permission
