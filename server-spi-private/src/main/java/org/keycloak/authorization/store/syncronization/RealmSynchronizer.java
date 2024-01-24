@@ -37,5 +37,6 @@ public class RealmSynchronizer implements Synchronizer<RealmRemovedEvent> {
         ResourceServerStore resourceServerStore = storeFactory.getResourceServerStore();
 
         event.getRealm().getClientsStream().forEach(resourceServerStore::delete);
+        // TODO MULTI-TENANCY: should we delete all of our tenants here too? If realms "own" a tenant in JPA then it shouldn't be needed
     }
 }

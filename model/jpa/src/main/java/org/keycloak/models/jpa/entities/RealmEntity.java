@@ -148,6 +148,9 @@ public class RealmEntity {
     @OneToMany(cascade ={CascadeType.REMOVE}, orphanRemoval = true, mappedBy = "realm")
     Collection<UserFederationMapperEntity> userFederationMappers = new LinkedList<>();
 
+    @OneToMany(mappedBy = "realm")
+    List<TenantEntity> tenants = new LinkedList<>();
+
     @ElementCollection
     @MapKeyColumn(name="NAME")
     @Column(name="VALUE")
@@ -827,6 +830,14 @@ public class RealmEntity {
 
     public void setRealmLocalizationTexts(Map<String, RealmLocalizationTextsEntity> realmLocalizationTexts) {
         this.realmLocalizationTexts = realmLocalizationTexts;
+    }
+
+    public List<TenantEntity> getTenants() {
+        return tenants;
+    }
+
+    public void setTenants(List<TenantEntity> tenants) {
+        this.tenants = tenants;
     }
 
     @Override

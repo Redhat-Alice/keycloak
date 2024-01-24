@@ -19,13 +19,7 @@ package org.keycloak.models.cache.infinispan;
 
 import org.keycloak.credential.CredentialModel;
 import org.keycloak.credential.LegacyUserCredentialManager;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.GroupModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.RoleModel;
-import org.keycloak.models.SubjectCredentialManager;
-import org.keycloak.models.UserModel;
+import org.keycloak.models.*;
 import org.keycloak.models.cache.CachedUserModel;
 import org.keycloak.models.cache.infinispan.entities.CachedUser;
 import org.keycloak.models.utils.KeycloakModelUtils;
@@ -135,6 +129,11 @@ public class UserAdapter implements CachedUserModel {
     public String getId() {
         if (updated != null) return updated.getId();
         return cached.getId();
+    }
+
+    @Override
+    public String getTenantId() {
+        return null;
     }
 
     @Override
@@ -256,6 +255,11 @@ public class UserAdapter implements CachedUserModel {
     public void setEmailVerified(boolean verified) {
         getDelegateForUpdate();
         updated.setEmailVerified(verified);
+    }
+
+    @Override
+    public TenantModel getTenant() {
+        return null;
     }
 
     @Override

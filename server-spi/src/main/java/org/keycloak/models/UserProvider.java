@@ -221,6 +221,16 @@ public interface UserProvider extends Provider,
      */
     UserModel getUserByFederatedIdentity(RealmModel realm, FederatedIdentityModel socialLink);
 
+    /**
+     * Returns a stream of users that correspond to the given tenant.
+     *
+     * @param realm a reference to the realm
+     * @param tenantModel reference to the tenant
+     * @return the user corresponding to socialLink and {@code null} if no such user exists
+     *
+     */
+    Stream<UserModel> getUsersByTenant(RealmModel realm, TenantModel tenantModel);
+
     /* PRE REMOVE methods - for cleaning user related properties when some other entity is removed */
 
     /**

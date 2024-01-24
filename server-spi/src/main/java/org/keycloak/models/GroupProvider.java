@@ -62,7 +62,23 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      * @param max Maximum number of results to return. Ignored if negative or {@code null}.
      * @return Stream of desired groups. Never returns {@code null}.
      */
-    Stream<GroupModel> getGroupsStream(RealmModel realm, Stream<String> ids, String search, Integer first, Integer max);
+    @Deprecated
+    default Stream<GroupModel> getGroupsStream(RealmModel realm, Stream<String> ids, String search, Integer first, Integer max) {
+        return getGroupsStream(realm, null, ids, search, first, max);
+    }
+
+    /**
+     * Returns a paginated stream of groups with given ids and given search value in group names.
+     *
+     * @param realm Realm.
+     * @param tenant Tenant.
+     * @param ids Stream of ids.
+     * @param search Case insensitive string which will be searched for. Ignored if null.
+     * @param first Index of the first result to return. Ignored if negative or {@code null}.
+     * @param max Maximum number of results to return. Ignored if negative or {@code null}.
+     * @return Stream of desired groups. Never returns {@code null}.
+     */
+    Stream<GroupModel> getGroupsStream(RealmModel realm, TenantModel tenant, Stream<String> ids, String search, Integer first, Integer max);
 
     /**
      * Returns a paginated stream of groups with given ids.
@@ -97,7 +113,20 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      * @param onlyTopGroups When true the function returns a count of top level groups only.
      * @return Number of groups/top level groups.
      */
-    Long getGroupsCount(RealmModel realm, Boolean onlyTopGroups);
+    @Deprecated
+    default Long getGroupsCount(RealmModel realm, Boolean onlyTopGroups) {
+        return getGroupsCount(realm, null, onlyTopGroups);
+    }
+
+    /**
+     * Returns a number of groups/top level groups (i.e. groups without parent group) for the given realm.
+     *
+     * @param realm Realm.
+     * @param tenant Tenant.
+     * @param onlyTopGroups When true the function returns a count of top level groups only.
+     * @return Number of groups/top level groups.
+     */
+    Long getGroupsCount(RealmModel realm, TenantModel tenant, Boolean onlyTopGroups);
 
     /**
      * Returns the number of top level groups containing groups with the given string in name for the given realm.
@@ -106,7 +135,20 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      * @param search Case insensitive string which will be searched for.
      * @return Number of groups with the given string in its name.
      */
-    Long getGroupsCountByNameContaining(RealmModel realm, String search);
+    @Deprecated
+    default Long getGroupsCountByNameContaining(RealmModel realm, String search) {
+        return getGroupsCountByNameContaining(realm, null, search);
+    }
+
+    /**
+     * Returns the number of top level groups containing groups with the given string in name for the given realm.
+     *
+     * @param realm Realm.
+     * @param tenant Tenant.
+     * @param search Case insensitive string which will be searched for.
+     * @return Number of groups with the given string in its name.
+     */
+    Long getGroupsCountByNameContaining(RealmModel realm, TenantModel tenant, String search);
 
     /**
      * Returns groups with the given role in the given realm.
@@ -117,7 +159,22 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      * @param maxResults Maximum number of results to return. Ignored if negative or {@code null}.
      * @return Stream of groups with the given role. Never returns {@code null}.
      */
-     Stream<GroupModel> getGroupsByRoleStream(RealmModel realm, RoleModel role, Integer firstResult, Integer maxResults);
+    @Deprecated
+    default Stream<GroupModel> getGroupsByRoleStream(RealmModel realm, RoleModel role, Integer firstResult, Integer maxResults) {
+        return getGroupsByRoleStream(realm, null, role, firstResult, maxResults);
+    }
+
+    /**
+     * Returns groups with the given role in the given tenant.
+     *
+     * @param realm Realm.
+     * @param tenant Tenant.
+     * @param role Role.
+     * @param firstResult First result to return. Ignored if negative or {@code null}.
+     * @param maxResults Maximum number of results to return. Ignored if negative or {@code null}.
+     * @return Stream of groups with the given role. Never returns {@code null}.
+     */
+    Stream<GroupModel> getGroupsByRoleStream(RealmModel realm, TenantModel tenant, RoleModel role, Integer firstResult, Integer maxResults);
 
     /**
      * Returns all top level groups (i.e. groups without parent group) for the given realm.
@@ -150,7 +207,22 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      * @param search The name that should be matched
      * @return Stream of top level groups in the realm. Never returns {@code null}.
      */
-    Stream<GroupModel> getTopLevelGroupsStream(RealmModel realm, String search, Boolean exact, Integer firstResult, Integer maxResults);
+    @Deprecated
+    default Stream<GroupModel> getTopLevelGroupsStream(RealmModel realm, String search, Boolean exact, Integer firstResult, Integer maxResults) {
+        return getTenantTopLevelGroupsStream(realm, null, search, exact, firstResult, maxResults);
+    }
+
+    /**
+     * Returns top level groups (i.e. groups without parent group) for the given realm.
+     *
+     * @param realm Realm.
+     * @param tenant Tenant.
+     * @param firstResult First result to return. Ignored if negative or {@code null}.
+     * @param maxResults Maximum number of results to return. Ignored if negative or {@code null}.
+     * @param search The name that should be matched
+     * @return Stream of top level groups in the tenant. Never returns {@code null}.
+     */
+    Stream<GroupModel> getTenantTopLevelGroupsStream(RealmModel realm, TenantModel tenant, String search, Boolean exact, Integer firstResult, Integer maxResults);
 
     /**
      * Creates a new group with the given name in the given realm.
@@ -203,8 +275,26 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      * @throws ModelDuplicateException If a group with the given id already exists or the toParent group has a subgroup with the given name
      * @return Model of the created group
      */
-    GroupModel createGroup(RealmModel realm, String id, String name, GroupModel toParent);
+    @Deprecated
+    default GroupModel createGroup(RealmModel realm, String id, String name, GroupModel toParent) {
+        return createGroup(realm, null, id, name, toParent);
+    }
 
+    /**
+     * Creates a new group within the provided tenant with the given name, id, name and parent to the given realm.
+     *
+     * @param realm Realm.
+     * @param tenant Tenant.
+     * @param id Id, will be generated if {@code null}.
+     * @param name Name.
+     * @param toParent Parent group, or {@code null} if the group is top level group
+     * @throws ModelDuplicateException If a group with the given id already exists or the toParent group has a subgroup with the given name
+     * @throws ModelIllegalStateException if the provided parent group doesn't exist within the provided tenant
+     * @return Model of the created group
+     */
+    GroupModel createGroup(RealmModel realm, TenantModel tenant, String id, String name, GroupModel toParent);
+
+    // TODO authz on this operation needs to account for tenant admins
     /**
      * Removes the given group for the given realm.
      *
@@ -214,6 +304,7 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      */
     boolean removeGroup(RealmModel realm, GroupModel group);
 
+    // TODO implementations of this method need to account for tenancy
     /**
      * This method is used for moving groups in group structure, for example:
      * <ul>
@@ -226,11 +317,12 @@ public interface GroupProvider extends Provider, GroupLookupProvider {
      * @param group Group to update.
      * @param toParent New parent group, or {@code null} if we are moving the group to top level group.
      * @throws ModelDuplicateException If there is already a group with group.name under the toParent group (or top-level if toParent is null)
+     * @throws ModelIllegalStateException If the new parent group is not within the same tenant as the group being updated
      */
     void moveGroup(RealmModel realm, GroupModel group, GroupModel toParent);
 
     /**
-     * Removes parent group for the given group in the given realm.
+     * Removes parent group for the given group in the given realm, making the provided group top level
      *
      * @param realm Realm.
      * @param subGroup Group.

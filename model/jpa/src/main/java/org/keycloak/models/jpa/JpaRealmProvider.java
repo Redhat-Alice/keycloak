@@ -46,22 +46,8 @@ import org.jboss.logging.Logger;
 import org.keycloak.common.util.Time;
 import org.keycloak.connections.jpa.util.JpaUtils;
 import org.keycloak.migration.MigrationModel;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.ClientProvider;
-import org.keycloak.models.ClientScopeModel;
-import org.keycloak.models.ClientScopeProvider;
-import org.keycloak.models.DeploymentStateProvider;
-import org.keycloak.models.GroupModel;
-import org.keycloak.models.GroupProvider;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.ModelDuplicateException;
-import org.keycloak.models.ModelException;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.RealmProvider;
-import org.keycloak.models.RoleContainerModel;
+import org.keycloak.models.*;
 import org.keycloak.models.RoleContainerModel.RoleRemovedEvent;
-import org.keycloak.models.RoleModel;
-import org.keycloak.models.RoleProvider;
 import org.keycloak.models.delegate.ClientModelLazyDelegate;
 import org.keycloak.models.jpa.entities.ClientAttributeEntity;
 import org.keycloak.models.jpa.entities.ClientEntity;
@@ -573,6 +559,11 @@ public class JpaRealmProvider implements RealmProvider, ClientProvider, ClientSc
     }
 
     @Override
+    public Stream<GroupModel> getGroupsStream(RealmModel realm, TenantModel tenant, Stream<String> ids, String search, Integer first, Integer max) {
+        return null;
+    }
+
+    @Override
     public Stream<GroupModel> getGroupsStream(RealmModel realm, Stream<String> ids, Integer first, Integer max) {
         if (first == null && max == null) {
             return getGroupsStream(realm, ids);
@@ -627,6 +618,11 @@ public class JpaRealmProvider implements RealmProvider, ClientProvider, ClientSc
     }
 
     @Override
+    public Long getGroupsCount(RealmModel realm, TenantModel tenant, Boolean onlyTopGroups) {
+        return null;
+    }
+
+    @Override
     public long getClientsCount(RealmModel realm) {
         final Long res = em.createNamedQuery("getRealmClientsCount", Long.class)
           .setParameter("realm", realm.getId())
@@ -640,6 +636,11 @@ public class JpaRealmProvider implements RealmProvider, ClientProvider, ClientSc
     }
 
     @Override
+    public Long getGroupsCountByNameContaining(RealmModel realm, TenantModel tenant, String search) {
+        return null;
+    }
+
+    @Override
     public Stream<GroupModel> getGroupsByRoleStream(RealmModel realm, RoleModel role, Integer firstResult, Integer maxResults) {
         TypedQuery<GroupEntity> query = em.createNamedQuery("groupsInRole", GroupEntity.class);
         query.setParameter("roleId", role.getId());
@@ -649,6 +650,11 @@ public class JpaRealmProvider implements RealmProvider, ClientProvider, ClientSc
         return closing(results
         		.map(g -> (GroupModel) new GroupAdapter(realm, em, g))
                 .sorted(GroupModel.COMPARE_BY_NAME));
+    }
+
+    @Override
+    public Stream<GroupModel> getGroupsByRoleStream(RealmModel realm, TenantModel tenant, RoleModel role, Integer firstResult, Integer maxResults) {
+        return null;
     }
 
     @Override
@@ -670,6 +676,11 @@ public class JpaRealmProvider implements RealmProvider, ClientProvider, ClientSc
             .filter(Objects::nonNull)
             .sorted(GroupModel.COMPARE_BY_NAME)
         );
+    }
+
+    @Override
+    public Stream<GroupModel> getTenantTopLevelGroupsStream(RealmModel realm, TenantModel tenant, String search, Boolean exact, Integer firstResult, Integer maxResults) {
+        return null;
     }
 
     @Override
@@ -731,6 +742,11 @@ public class JpaRealmProvider implements RealmProvider, ClientProvider, ClientSc
         em.flush();
 
         return new GroupAdapter(realm, em, groupEntity);
+    }
+
+    @Override
+    public GroupModel createGroup(RealmModel realm, TenantModel tenant, String id, String name, GroupModel toParent) {
+        return null;
     }
 
     @Override

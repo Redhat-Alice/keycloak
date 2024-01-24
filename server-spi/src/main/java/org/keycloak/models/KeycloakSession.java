@@ -165,6 +165,14 @@ public interface KeycloakSession extends AutoCloseable {
     ClientScopeProvider clientScopes();
 
     /**
+     * Returns a managed tenant provider instance.
+     *
+     * @return Currently used {@link TenantProvider} instance.
+     * @throws IllegalStateException if transaction is not active
+     */
+    TenantProvider tenants();
+
+    /**
      * Returns a managed group provider instance.
      *
      * @return Currently used GroupProvider instance.

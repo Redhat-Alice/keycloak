@@ -22,23 +22,7 @@ import org.keycloak.component.ComponentFactory;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.jose.jws.DefaultTokenManager;
 import org.keycloak.keys.DefaultKeyManager;
-import org.keycloak.models.ClientProvider;
-import org.keycloak.models.ClientScopeProvider;
-import org.keycloak.models.GroupProvider;
-import org.keycloak.models.KeyManager;
-import org.keycloak.models.KeycloakContext;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.models.KeycloakTransactionManager;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.RealmProvider;
-import org.keycloak.models.RoleProvider;
-import org.keycloak.models.SingleUseObjectProvider;
-import org.keycloak.models.ThemeManager;
-import org.keycloak.models.TokenManager;
-import org.keycloak.models.UserLoginFailureProvider;
-import org.keycloak.models.UserProvider;
-import org.keycloak.models.UserSessionProvider;
+import org.keycloak.models.*;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.Provider;
 import org.keycloak.provider.ProviderFactory;
@@ -282,6 +266,11 @@ public class DefaultKeycloakSession implements KeycloakSession {
     @Override
     public ClientScopeProvider clientScopes() {
         return getDatastoreProvider().clientScopes();
+    }
+
+    @Override
+    public TenantProvider tenants() {
+        return getDatastoreProvider().tenants();
     }
 
     @Override

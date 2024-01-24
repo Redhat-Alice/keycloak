@@ -18,11 +18,8 @@ package org.keycloak.storage;
 
 import java.util.Map;
 import java.util.stream.Stream;
-import org.keycloak.models.GroupModel;
-import org.keycloak.models.GroupProvider;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.RoleModel;
+
+import org.keycloak.models.*;
 import org.keycloak.storage.group.GroupLookupProvider;
 import org.keycloak.storage.group.GroupStorageProvider;
 import org.keycloak.storage.group.GroupStorageProviderFactory;
@@ -99,8 +96,18 @@ public class GroupStorageManager extends AbstractStorageManager<GroupStorageProv
     }
 
     @Override
+    public Stream<GroupModel> getGroupsStream(RealmModel realm, TenantModel tenant, Stream<String> ids, String search, Integer first, Integer max) {
+        return localStorage().getGroupsStream(realm, tenant, ids, search, first, max);
+    }
+
+    @Override
     public Long getGroupsCount(RealmModel realm, Boolean onlyTopGroups) {
         return localStorage().getGroupsCount(realm, onlyTopGroups);
+    }
+
+    @Override
+    public Long getGroupsCount(RealmModel realm, TenantModel tenant, Boolean onlyTopGroups) {
+        return localStorage().getGroupsCount(realm, tenant, onlyTopGroups);
     }
 
     @Override
@@ -109,8 +116,18 @@ public class GroupStorageManager extends AbstractStorageManager<GroupStorageProv
     }
 
     @Override
+    public Long getGroupsCountByNameContaining(RealmModel realm, TenantModel tenant, String search) {
+        return localStorage().getGroupsCountByNameContaining(realm, tenant, search);
+    }
+
+    @Override
     public Stream<GroupModel> getGroupsByRoleStream(RealmModel realm, RoleModel role, Integer firstResult, Integer maxResults) {
         return localStorage().getGroupsByRoleStream(realm, role, firstResult, maxResults);
+    }
+
+    @Override
+    public Stream<GroupModel> getGroupsByRoleStream(RealmModel realm, TenantModel tenant, RoleModel role, Integer firstResult, Integer maxResults) {
+        return localStorage().getGroupsByRoleStream(realm, tenant, role, firstResult, maxResults);
     }
 
     @Override
@@ -119,8 +136,18 @@ public class GroupStorageManager extends AbstractStorageManager<GroupStorageProv
     }
 
     @Override
+    public Stream<GroupModel> getTenantTopLevelGroupsStream(RealmModel realm, TenantModel tenant, String search, Boolean exact, Integer firstResult, Integer maxResults) {
+        return localStorage().getTenantTopLevelGroupsStream(realm, tenant, search, exact, firstResult, maxResults);
+    }
+
+    @Override
     public GroupModel createGroup(RealmModel realm, String id, String name, GroupModel toParent) {
         return localStorage().createGroup(realm, id, name, toParent);
+    }
+
+    @Override
+    public GroupModel createGroup(RealmModel realm, TenantModel tenant, String id, String name, GroupModel toParent) {
+        return localStorage().createGroup(realm, tenant, id, name, toParent);
     }
 
     @Override

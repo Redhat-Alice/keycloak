@@ -66,6 +66,10 @@ public class GroupEntity {
     @Column(name = "REALM_ID")
     private String realm;
 
+    @ManyToOne
+    @JoinColumn(name = "TENANT_ID")
+    protected TenantEntity tenant;
+
     @OneToMany(
             cascade = CascadeType.REMOVE,
             orphanRemoval = true, mappedBy="group")
@@ -112,6 +116,14 @@ public class GroupEntity {
 
     public void setParentId(String parentId) {
         this.parentId = parentId;
+    }
+
+    public TenantEntity getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(TenantEntity tenant) {
+        this.tenant = tenant;
     }
 
     @Override

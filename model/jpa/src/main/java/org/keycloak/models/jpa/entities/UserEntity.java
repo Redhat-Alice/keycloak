@@ -17,23 +17,13 @@
 
 package org.keycloak.models.jpa.entities;
 
+import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Nationalized;
 import org.keycloak.models.utils.KeycloakModelUtils;
 
-import jakarta.persistence.Access;
-import jakarta.persistence.AccessType;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.NamedQueries;
-import jakarta.persistence.NamedQuery;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -57,6 +47,8 @@ import java.util.LinkedList;
 })
 @Entity
 @Table(name="USER_ENTITY", uniqueConstraints = {
+        // TODO: We want to have an email map to many usernames but usernames should be unique on the tenant level
+        // TODO we'll need to modify the existing unique constraint but it's from a generator (?) so have to figure that out
         @UniqueConstraint(columnNames = { "REALM_ID", "USERNAME" }),
         @UniqueConstraint(columnNames = { "REALM_ID", "EMAIL_CONSTRAINT" })
 })
@@ -90,6 +82,10 @@ public class UserEntity {
 
     @Column(name = "REALM_ID")
     protected String realmId;
+
+    @ManyToOne
+    @JoinColumn(name = "TENANT_ID")
+    protected TenantEntity tenant;
 
     @OneToMany(cascade = CascadeType.REMOVE, orphanRemoval = true, mappedBy="user")
     @Fetch(FetchMode.SELECT)
@@ -221,6 +217,14 @@ public class UserEntity {
 
     public void setRealmId(String realmId) {
         this.realmId = realmId;
+    }
+
+    public TenantEntity getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(TenantEntity tenant) {
+        this.tenant = tenant;
     }
 
     public Collection<CredentialEntity> getCredentials() {

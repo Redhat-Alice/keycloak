@@ -17,28 +17,12 @@
 
 package org.keycloak.storage.datastore;
 
-import org.keycloak.models.ClientProvider;
-import org.keycloak.models.ClientScopeProvider;
-import org.keycloak.models.GroupProvider;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmProvider;
-import org.keycloak.models.RoleProvider;
-import org.keycloak.models.SingleUseObjectProvider;
-import org.keycloak.models.UserLoginFailureProvider;
-import org.keycloak.models.UserProvider;
-import org.keycloak.models.UserSessionProvider;
+import org.keycloak.models.*;
 import org.keycloak.models.cache.CacheRealmProvider;
+import org.keycloak.models.cache.CacheTenantProvider;
 import org.keycloak.models.cache.UserCache;
 import org.keycloak.sessions.AuthenticationSessionProvider;
-import org.keycloak.storage.ClientScopeStorageManager;
-import org.keycloak.storage.ClientStorageManager;
-import org.keycloak.storage.DatastoreProvider;
-import org.keycloak.storage.ExportImportManager;
-import org.keycloak.storage.GroupStorageManager;
-import org.keycloak.storage.LegacyStoreManagers;
-import org.keycloak.storage.MigrationManager;
-import org.keycloak.storage.RoleStorageManager;
-import org.keycloak.storage.UserStorageManager;
+import org.keycloak.storage.*;
 import org.keycloak.storage.federated.UserFederatedStorageProvider;
 
 public class LegacyDatastoreProvider implements DatastoreProvider, LegacyStoreManagers {
@@ -51,11 +35,13 @@ public class LegacyDatastoreProvider implements DatastoreProvider, LegacyStoreMa
     private GroupProvider groupProvider;
     private UserLoginFailureProvider userLoginFailureProvider;
     private RealmProvider realmProvider;
+    private TenantProvider tenantProvider;
     private RoleProvider roleProvider;
     private SingleUseObjectProvider singleUseObjectProvider;
     private UserProvider userProvider;
     private UserSessionProvider userSessionProvider;
 
+    private TenantStorageManager tenantStorageManager;
     private ClientScopeStorageManager clientScopeStorageManager;
     private RoleStorageManager roleStorageManager;
     private GroupStorageManager groupStorageManager;
@@ -91,6 +77,13 @@ public class LegacyDatastoreProvider implements DatastoreProvider, LegacyStoreMa
             roleStorageManager = new RoleStorageManager(session, factory.getRoleStorageProviderTimeout());
         }
         return roleStorageManager;
+    }
+
+    public TenantProvider tenantStorageManager() {
+        if (tenantStorageManager == null) {
+            tenantStorageManager = new TenantStorageManager(session);
+        }
+        return tenantStorageManager;
     }
 
     public GroupProvider groupStorageManager() {
@@ -137,6 +130,15 @@ public class LegacyDatastoreProvider implements DatastoreProvider, LegacyStoreMa
             return cache;
         } else {
             return clientScopeStorageManager();
+        }
+    }
+
+    private TenantProvider getTenantProvider() {
+        TenantProvider cache = session.getProvider(CacheTenantProvider.class);
+        if (cache != null) {
+            return cache;
+        } else {
+            return tenantStorageManager();
         }
     }
 
@@ -200,6 +202,14 @@ public class LegacyDatastoreProvider implements DatastoreProvider, LegacyStoreMa
             clientScopeProvider = getClientScopeProvider();
         }
         return clientScopeProvider;
+    }
+
+    @Override
+    public TenantProvider tenants() {
+        if (tenantProvider == null) {
+            tenantProvider = getTenantProvider();
+        }
+        return tenantProvider;
     }
 
     @Override

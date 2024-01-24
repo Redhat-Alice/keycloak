@@ -17,11 +17,7 @@
 
 package org.keycloak.models.utils;
 
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.GroupModel;
-import org.keycloak.models.RoleModel;
-import org.keycloak.models.SubjectCredentialManager;
-import org.keycloak.models.UserModel;
+import org.keycloak.models.*;
 
 import java.util.List;
 import java.util.Map;
@@ -43,6 +39,11 @@ public class UserModelDelegate implements UserModel {
     @Override
     public String getId() {
         return delegate.getId();
+    }
+
+    @Override
+    public String getTenantId() {
+        return null;
     }
 
     @Override
@@ -158,6 +159,11 @@ public class UserModelDelegate implements UserModel {
     @Override
     public void setEmailVerified(boolean verified) {
         delegate.setEmailVerified(verified);
+    }
+
+    @Override
+    public TenantModel getTenant() {
+        return null;
     }
 
     @Override

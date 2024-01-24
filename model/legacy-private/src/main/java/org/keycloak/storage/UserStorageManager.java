@@ -39,21 +39,7 @@ import org.keycloak.credential.CredentialAuthentication;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.CredentialProvider;
 import org.keycloak.credential.CredentialProviderFactory;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.ClientScopeModel;
-import org.keycloak.models.CredentialValidationOutput;
-import org.keycloak.models.FederatedIdentityModel;
-import org.keycloak.models.GroupModel;
-import org.keycloak.models.IdentityProviderModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.ModelException;
-import org.keycloak.models.ProtocolMapperModel;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.RoleModel;
-import org.keycloak.models.UserConsentModel;
-import org.keycloak.models.UserManager;
-import org.keycloak.models.UserModel;
-import org.keycloak.models.UserProvider;
+import org.keycloak.models.*;
 import org.keycloak.models.cache.CachedUserModel;
 import org.keycloak.models.cache.OnUserCache;
 import org.keycloak.models.cache.UserCache;
@@ -676,6 +662,11 @@ public class UserStorageManager extends AbstractStorageManager<UserStorageProvid
         if (getFederatedStorage() == null) return null;
         String id = getFederatedStorage().getUserByFederatedIdentity(socialLink, realm);
         if (id != null) return getUserById(realm, id);
+        return null;
+    }
+
+    @Override
+    public Stream<UserModel> getUsersByTenant(RealmModel realm, TenantModel tenantModel) {
         return null;
     }
 

@@ -51,6 +51,9 @@ public interface GroupModel extends RoleMapperModel {
 
     void setName(String name);
 
+    // TODO This method could be potentially useless but it might be helpful for permissions and such
+    TenantModel getTenant();
+
     /**
      * Set single value of specified attribute. Remove all other existing values
      *

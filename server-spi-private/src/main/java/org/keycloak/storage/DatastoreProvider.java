@@ -17,15 +17,7 @@
 
 package org.keycloak.storage;
 
-import org.keycloak.models.ClientProvider;
-import org.keycloak.models.ClientScopeProvider;
-import org.keycloak.models.GroupProvider;
-import org.keycloak.models.RealmProvider;
-import org.keycloak.models.RoleProvider;
-import org.keycloak.models.SingleUseObjectProvider;
-import org.keycloak.models.UserLoginFailureProvider;
-import org.keycloak.models.UserProvider;
-import org.keycloak.models.UserSessionProvider;
+import org.keycloak.models.*;
 import org.keycloak.provider.Provider;
 import org.keycloak.sessions.AuthenticationSessionProvider;
 
@@ -36,6 +28,8 @@ public interface DatastoreProvider extends Provider {
     ClientScopeProvider clientScopes();
 
     ClientProvider clients();
+
+    TenantProvider tenants();
 
     GroupProvider groups();
 

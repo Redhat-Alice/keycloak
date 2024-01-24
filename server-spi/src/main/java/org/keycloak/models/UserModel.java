@@ -39,6 +39,7 @@ public interface UserModel extends RoleMapperModel {
     String IDP_ALIAS = "keycloak.session.realm.users.query.idp_alias";
     String IDP_USER_ID = "keycloak.session.realm.users.query.idp_user_id";
     String INCLUDE_SERVICE_ACCOUNT = "keycloak.session.realm.users.query.include_service_account";
+    String TENANT = "keycloak.session.realm.users.query.tenant";
     String GROUPS = "keycloak.session.realm.users.query.groups";
     String SEARCH = "keycloak.session.realm.users.query.search";
     String EXACT = "keycloak.session.realm.users.query.exact";
@@ -53,6 +54,9 @@ public interface UserModel extends RoleMapperModel {
     }
 
     String getId();
+
+    // we need to enforce at the DB level uniqueness of usernames on tenants. Best way to do that is with the tenant ID
+    String getTenantId();
 
     // No default method here to allow Abstract subclasses where the username is provided in a different manner
     String getUsername();
@@ -148,6 +152,13 @@ public interface UserModel extends RoleMapperModel {
     boolean isEmailVerified();
 
     void setEmailVerified(boolean verified);
+
+    /**
+     * Obtains the tenant associated with the user.
+     *
+     * @return the tenant or null if no tenant association
+     */
+    TenantModel getTenant();
 
     /**
      * Obtains the groups associated with the user.

@@ -16,13 +16,7 @@
  */
 package org.keycloak.services.resources.admin.permissions;
 
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.GroupModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.RoleContainerModel;
-import org.keycloak.models.RoleModel;
-import org.keycloak.models.UserModel;
+import org.keycloak.models.*;
 import org.keycloak.provider.ProviderEvent;
 import org.keycloak.provider.ProviderEventListener;
 import org.keycloak.provider.ProviderEventManager;
@@ -75,6 +69,8 @@ public class AdminPermissions {
                 } else if (event instanceof GroupModel.GroupRemovedEvent) {
                     GroupModel.GroupRemovedEvent cast = (GroupModel.GroupRemovedEvent)event;
                     management(cast.getKeycloakSession(), cast.getRealm()).groups().setPermissionsEnabled(cast.getGroup(), false);
+                } else if (event instanceof TenantModel.TenantRemovedEvent) {
+                    // TODO MULTI-TENANCY: implement tenancy authz. Intentionally blank for now
                 }
             }
         });
