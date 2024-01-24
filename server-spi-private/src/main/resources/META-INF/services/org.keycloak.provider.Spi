@@ -21,6 +21,7 @@ org.keycloak.models.ClientSpi
 org.keycloak.models.ClientScopeSpi
 org.keycloak.models.GroupSpi
 org.keycloak.models.RealmSpi
+org.keycloak.models.TenantSpi
 org.keycloak.models.RoleSpi
 org.keycloak.models.DeploymentStateSpi
 org.keycloak.models.OAuth2DeviceUserCodeSpi

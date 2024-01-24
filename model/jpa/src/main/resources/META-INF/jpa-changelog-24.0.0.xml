@@ -15,26 +15,59 @@
   ~ * See the License for the specific language governing permissions and
   ~ * limitations under the License.
   -->
+
+<!-- TODO MULTI TENANCY this file will probably have to move or be changed in some way. I just need the changesets for development too so created this file for local dev -->
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
 
-    <changeSet author="keycloak" id="23.0.0-12062">
+    <!-- TODO what's the standard on these ids for changesets? I see version but then how is the suffix made? -->
+    <changeSet author="keycloak" id="24.0.0-12062">
+        <!-- TODO should we have the primary key be just tenant id or realm + tenant? Common to shard tenants and being able to shard on just the tenant key is way easier... -->
+        <createTable tableName="KEYCLOAK_TENANT">
+            <column name="ID" type="varchar(36)">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="NAME" type="nvarchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="DISPLAY_NAME" type="nvarchar(255)"/>
 
-        <addColumn tableName="COMPONENT_CONFIG">
-            <column name="VALUE_NEW" type="NCLOB" />
+            <column name="REALM_ID" type="varchar(36)"/>
+        </createTable>
+
+        <createTable tableName="TENANT_ATTRIBUTE">
+            <column name="ID" type="varchar(36)">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="NAME" type="nvarchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="VALUE" type="nvarchar(255)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="TENANT_ID" type="varchar(36)"/>
+        </createTable>
+
+        <addColumn tableName="KEYCLOAK_GROUP">
+            <column name="TENANT_ID" type="varchar(36)"/>
         </addColumn>
 
-        <update tableName="COMPONENT_CONFIG">
-            <column name="VALUE_NEW" valueComputed="VALUE"/>
-        </update>
-
-        <dropColumn tableName="COMPONENT_CONFIG" columnName="VALUE"/>
-        <renameColumn tableName="COMPONENT_CONFIG" oldColumnName="VALUE_NEW" newColumnName="VALUE" columnDataType="NCLOB"/>
-    </changeSet>
-
-    <changeSet author="keycloak" id="23.0.0-17258">
-        <addColumn tableName="EVENT_ENTITY">
-            <column name="DETAILS_JSON_LONG_VALUE" type="NCLOB" />
+        <addColumn tableName="USER_ENTITY">
+            <column name="TENANT_ID" type="varchar(36)"/>
         </addColumn>
-    </changeSet>
 
+        <!-- TODO Seems like this project has a preference to specify the foreign key constraint separately. Not sure why. Looks like names get generated usually too -->
+        <addForeignKeyConstraint baseTableName="KEYCLOAK_TENANT" baseColumnNames="REALM_ID" constraintName="TENANT_REALM_CONSTRAINT" referencedTableName="REALM"
+                                 referencedColumnNames="ID"/>
+        <addForeignKeyConstraint baseTableName="TENANT_ATTRIBUTE" baseColumnNames="TENANT_ID" constraintName="TENANT_ATTRIBUTE_CONSTRAINT" referencedTableName="KEYCLOAK_TENANT"
+                                 referencedColumnNames="ID"/>
+
+        <addForeignKeyConstraint baseTableName="KEYCLOAK_GROUP" baseColumnNames="TENANT_ID" constraintName="GROUP_TENANT_CONSTRAINT" referencedTableName="KEYCLOAK_TENANT"
+                                 referencedColumnNames="ID"/>
+        <addForeignKeyConstraint baseTableName="USER_ENTITY" baseColumnNames="TENANT_ID" constraintName="USER_TENANT_CONSTRAINT" referencedTableName="KEYCLOAK_TENANT"
+                                 referencedColumnNames="ID"/>
+
+        <addUniqueConstraint tableName="KEYCLOAK_TENANT" columnNames="REALM_ID, NAME" constraintName="TENANT_UNIQUE_NAME_REALM"/>
+        <addUniqueConstraint tableName="TENANT_ATTRIBUTE" columnNames="TENANT_ID, NAME" constraintName="TENANT_ATTRIBUTE_UNIQUE_NAME_TENANT"/>
+    </changeSet>
 </databaseChangeLog>
