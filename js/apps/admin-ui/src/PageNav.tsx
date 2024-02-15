@@ -75,7 +75,7 @@ export const PageNav = () => {
     "view-realm",
     "query-groups",
     "query-users",
-    "query-clients",
+    "query-tenants",
     "view-events",
   );
 
@@ -104,6 +104,7 @@ export const PageNav = () => {
               <LeftNav title="clientScopes" path="/client-scopes" />
               <LeftNav title="realmRoles" path="/roles" />
               <LeftNav title="users" path="/users" />
+              <LeftNav title="tenancy" path="/tenancy" />
               <LeftNav title="groups" path="/groups" />
               <LeftNav title="sessions" path="/sessions" />
               <LeftNav title="events" path="/events" />

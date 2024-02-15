@@ -11,6 +11,7 @@ import clientRoutes from "./clients/routes";
 import dashboardRoutes from "./dashboard/routes";
 import eventRoutes from "./events/routes";
 import groupsRoutes from "./groups/routes";
+import tenancyRoutes from "./tenancy/routes";
 import identityProviders from "./identity-providers/routes";
 import realmRoleRoutes from "./realm-roles/routes";
 import realmSettingRoutes from "./realm-settings/routes";
@@ -50,6 +51,7 @@ export const routes: AppRouteObject[] = [
   ...userFederationRoutes,
   ...userRoutes,
   ...groupsRoutes,
+  ...tenancyRoutes,
   ...dashboardRoutes,
   NotFoundRoute,
 ];

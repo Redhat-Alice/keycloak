@@ -51,7 +51,6 @@ export class WhoAmI {
     [key: string]: ReadonlyArray<AccessType>;
   }> {
     if (this.#me === undefined) return {};
-
     return this.#me.realm_access;
   }
 }
@@ -70,6 +69,7 @@ export const useWhoAmI = () => useRequiredContext(WhoAmIContext);
 
 export const WhoAmIContextProvider = ({ children }: PropsWithChildren) => {
   const [whoAmI, setWhoAmI] = useState<WhoAmI>(new WhoAmI());
+  2;
   const { realm } = useRealm();
   const [key, setKey] = useState(0);
 

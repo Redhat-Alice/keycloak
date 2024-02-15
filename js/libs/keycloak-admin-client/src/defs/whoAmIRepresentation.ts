@@ -17,6 +17,7 @@ export type AccessType =
   | "manage-authorization"
   | "manage-clients"
   | "query-groups"
+  | "query-tenants"
   | "anyone";
 
 export default interface WhoAmIRepresentation {
