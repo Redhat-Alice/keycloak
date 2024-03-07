@@ -17,6 +17,10 @@
 
 package org.keycloak.common;
 
+import io.getunleash.util.UnleashConfig;
+import io.getunleash.Unleash;
+import io.getunleash.DefaultUnleash;
+
 import org.jboss.logging.Logger;
 import org.keycloak.common.profile.ProfileConfigResolver;
 import org.keycloak.common.profile.ProfileException;
@@ -42,6 +46,8 @@ public class Profile {
 
     public enum Feature {
         AUTHORIZATION("Authorization Service", Type.DEFAULT),
+
+        UNLEASH("Unleash feature flagging", Type.DEFAULT),
 
         ACCOUNT_API("Account Management REST API", Type.DEFAULT),
         ACCOUNT2("Account Management Console version 2", Type.DEFAULT, Feature.ACCOUNT_API),
@@ -164,6 +170,9 @@ public class Profile {
 
     private final Map<Feature, Boolean> features;
 
+
+    private final Unleash unleash = null;
+
     public static Profile defaults() {
         return configure();
     }
@@ -186,6 +195,20 @@ public class Profile {
         this.profileName = profileName;
         this.features = Collections.unmodifiableMap(features);
 
+       final UnleashConfig ffconfig = UnleashConfig.builder()
+                .appName("keycloak")
+                .instanceId("myInstance")
+                .unleashAPI("localhost:4242/api")
+                .apiKey("default:development.unleash-insecure-api-token")
+                .build();
+
+        // run init for unleash if enabled.
+        if(features.get("UNLEASH")){
+            //initialize unleash client instance. This should probably be try catch wrapped
+            Unleash unleash = new DefaultUnleash(ffconfig);
+            System.out.println("Nothing");
+        }
+
         logUnsupportedFeatures();
     }
 
@@ -194,7 +217,14 @@ public class Profile {
     }
 
     public static boolean isFeatureEnabled(Feature feature) {
-        return getInstance().features.get(feature);
+        Profile current = getInstance();
+        // create a check to validate the use of feature flagging service.
+        if(current.features.get("UNLEASH")) {
+            // run the check.
+            current.unleash.isEnabled(feature.name());
+        }
+        return current.features.get(feature);
+
     }
 
     public ProfileName getName() {
