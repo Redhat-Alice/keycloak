@@ -23,26 +23,23 @@ import org.keycloak.authorization.common.DefaultEvaluationContext;
 import org.keycloak.authorization.common.KeycloakIdentity;
 import org.keycloak.authorization.common.UserModelIdentity;
 import org.keycloak.authorization.identity.Identity;
+import org.keycloak.authorization.model.Policy;
 import org.keycloak.authorization.model.Resource;
 import org.keycloak.authorization.model.ResourceServer;
 import org.keycloak.authorization.model.Scope;
 import org.keycloak.authorization.permission.ResourcePermission;
 import org.keycloak.authorization.policy.evaluation.EvaluationContext;
+import org.keycloak.authorization.store.PolicyStore;
+import org.keycloak.authorization.store.ResourceStore;
 import org.keycloak.common.Profile;
-import org.keycloak.models.AdminRoles;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.Constants;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserModel;
+import org.keycloak.models.*;
 import org.keycloak.representations.idm.authorization.Permission;
 import org.keycloak.services.managers.RealmManager;
 import org.keycloak.services.resources.admin.AdminAuth;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import jakarta.ws.rs.ForbiddenException;
 
@@ -61,6 +58,7 @@ class MgmtPermissions implements AdminPermissionEvaluator, AdminPermissionManage
     protected ResourceServer realmResourceServer;
     protected UserPermissions users;
     protected GroupPermissions groups;
+    protected OrganizationPermissions organizations;
     protected RealmPermissions realmPermissions;
     protected ClientPermissions clientPermissions;
     protected IdentityProviderPermissions idpPermissions;
@@ -237,6 +235,13 @@ class MgmtPermissions implements AdminPermissionEvaluator, AdminPermissionManage
         return groups;
     }
 
+    @Override
+    public OrganizationPermissionEvaluator organizations() {
+       if (organizations != null) return organizations;
+       organizations = new OrganizationPermissions(authz, this);
+       return organizations;
+    }
+
     public ResourceServer findOrCreateResourceServer(ClientModel client) {
          return initializeRealmResourceServer();
     }
@@ -351,6 +356,150 @@ class MgmtPermissions implements AdminPermissionEvaluator, AdminPermissionManage
         } finally {
             session.getContext().setRealm(oldRealm);
         }
+    }
+
+    /**
+     * A re-usable hook into the resource store that creates the necessary boilerplate for permission evaluation
+     * and then evaluates the authorized scopes returned from the resource server.
+     * @param resource A {@link Resource} object that represents the resource in the store being evaluated. This resource must exist in the resource store to be considered for evaluation
+     * @param context A {@link EvaluationContext} that represents the security context being evaluated. If null, a default will be created using the current session's identity
+     * @param scopes the scopes that must be granted
+     * @return true if and only if all scopes provided were granted for the resource.
+     */
+    protected boolean hasPermission(Resource resource, EvaluationContext context, String... scopes) {
+        if (realmResourceServer == null) {
+            return false;
+        }
+
+        Collection<Permission> permissions;
+
+        if (context == null) {
+            permissions = evaluatePermission(new ResourcePermission(resource, resource.getScopes(), realmResourceServer), realmResourceServer);
+        } else {
+            permissions = evaluatePermission(new ResourcePermission(resource, resource.getScopes(), realmResourceServer), realmResourceServer, context);
+        }
+
+        Set<String> expectedScopeSet = Set.of(scopes);
+
+        // TODO this loop might be a bit overkill, a returned permission should either be for the resource or for a "null" resource that applies globally
+        for (Permission permission : permissions) {
+            if (permission.getScopes().containsAll(expectedScopeSet)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected Resource initializeResource(AuthorizationModel model, String... scopes) {
+        ResourceStore resourceStore = authz.getStoreFactory().getResourceStore();
+        ResourceServer server = initializeRealmResourceServer();
+        if (server == null) return null;
+        initializeRealmDefaultScopes();
+
+        Scope manageScope = realmManageScope();
+        Scope viewScope = realmViewScope();
+        Set<Scope> initScopes = new HashSet<>();
+
+        model.getResourceScopes().forEach(scope -> {
+            Scope storedScope = initializeRealmScope(scope);
+            if (storedScope != null) initScopes.add(storedScope);
+        });
+
+        Arrays.stream(scopes).forEach(scope -> {
+            Scope storedScope = initializeRealmScope(scope);
+            if(storedScope != null) {
+                initScopes.add(storedScope);
+            }
+        });
+
+        // create an org resource in the resource store with the scopes we previously added
+        // We also set the type to "Organization" so that we can create type level policies for convenience on all orgs
+        Resource storedResource = resourceStore.findByName(server, model.getResourceName());
+        if (storedResource == null) {
+            storedResource = resourceStore.create(server, model.getResourceName(), server.getClientId());
+            Set<Scope> scopeset = new HashSet<>();
+            scopeset.add(manageScope);
+            scopeset.add(viewScope);
+            scopeset.addAll(initScopes);
+            storedResource.updateScopes(scopeset);
+            storedResource.setType(model.getResourceType());
+        }
+
+        PolicyStore policyStore = authz.getStoreFactory().getPolicyStore();
+        // automatically create some scope permissions for our new resource that we can use for setting up authz
+        // in ENFORCING mode this will also cause these permissions to default to DENY
+        Resource finalStoredResource = storedResource;
+        storedResource.getScopes().forEach(s -> {
+            Policy policy = policyStore.findByName(server, s.getName() + model.getResourceName());
+            if (policy == null) {
+                Helper.addEmptyScopePermission(authz, server, s.getName() + model.getResourceName(), finalStoredResource, s);
+            }
+        });
+        return storedResource;
+    }
+
+    @Override
+    public boolean isPermissionsEnabled(AuthorizationModel model) {
+        ResourceServer server = realmResourceServer();
+        ResourceStore resourceStore = authz.getStoreFactory().getResourceStore();
+        if (server == null) return false;
+
+        return resourceStore.findByName(server, model.getResourceName()) != null;
+    }
+
+    @Override
+    public void setPermissionsEnabled(AuthorizationModel model, boolean enabled) {
+        if (enabled) {
+            initializeResource(model);
+        } else {
+            deletePermissions(model);
+        }
+    }
+
+    private void deletePermissions(AuthorizationModel model) {
+        ResourceServer server = realmResourceServer();
+        if (server == null) return;
+
+        ResourceStore resourceStore = authz.getStoreFactory().getResourceStore();
+        PolicyStore policyStore = authz.getStoreFactory().getPolicyStore();
+        Resource storedResource = resourceStore.findByName(server, model.getResourceName());
+        if(storedResource != null) {
+            // Explicitly delete all scope permissions made by the init method
+            storedResource.getScopes().forEach(s -> {
+                Policy policy = policyStore.findByName(server, s.getName() + model.getResourceName());
+                if (policy != null) {
+                    policyStore.delete(policy.getId());
+                }
+            });
+            resourceStore.delete(storedResource.getId());
+        }
+    }
+
+    @Override
+    public Resource resource(AuthorizationModel model) {
+        ResourceStore resourceStore = authz.getStoreFactory().getResourceStore();
+        ResourceServer server = realmResourceServer();
+        if (server == null) return null;
+        return resourceStore.findByName(server, model.getResourceName());
+    }
+
+    @Override
+    public Map<String, String> permissions(AuthorizationModel model) {
+        ResourceServer server = realmResourceServer();
+        ResourceStore resourceStore = authz.getStoreFactory().getResourceStore();
+        PolicyStore policyStore = authz.getStoreFactory().getPolicyStore();
+        if(server == null || resourceStore == null || policyStore == null) {
+            return Map.of();
+        }
+        Resource resource = resourceStore.findByName(server, model.getResourceName());
+        if (resource == null) {
+            return Map.of();
+        }
+        return resource.getScopes().stream().map(Scope::getName)
+                .collect(Collectors.toMap(Function.identity(), s -> {
+                    Policy policy = policyStore.findByName(server, s + model.getResourceName());
+                    return policy == null ? "" : policy.getId();
+                }));
     }
 
     @Override

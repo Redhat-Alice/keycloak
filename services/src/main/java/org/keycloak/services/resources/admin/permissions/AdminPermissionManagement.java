@@ -17,8 +17,12 @@
 package org.keycloak.services.resources.admin.permissions;
 
 import org.keycloak.authorization.AuthorizationProvider;
+import org.keycloak.authorization.model.Resource;
 import org.keycloak.authorization.model.ResourceServer;
+import org.keycloak.models.AuthorizationModel;
 import org.keycloak.models.ClientModel;
+
+import java.util.Map;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -40,4 +44,10 @@ public interface AdminPermissionManagement {
     IdentityProviderPermissionManagement idps();
 
     ResourceServer realmResourceServer();
+
+    void setPermissionsEnabled(AuthorizationModel model, boolean enabled);
+    boolean isPermissionsEnabled(AuthorizationModel model);
+
+    Resource resource(AuthorizationModel model);
+    Map<String, String> permissions(AuthorizationModel model);
 }

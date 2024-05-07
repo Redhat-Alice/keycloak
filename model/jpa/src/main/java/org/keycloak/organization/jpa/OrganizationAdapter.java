@@ -40,6 +40,8 @@ import org.keycloak.organization.OrganizationProvider;
 import org.keycloak.utils.EmailValidationUtil;
 import org.keycloak.utils.StringUtil;
 
+import java.util.Set;
+
 public final class OrganizationAdapter implements OrganizationModel, JpaModel<OrganizationEntity> {
 
     private final RealmModel realm;
@@ -214,5 +216,25 @@ public final class OrganizationAdapter implements OrganizationModel, JpaModel<Or
             group = realm.getGroupById(getGroupId());
         }
         return group;
+    }
+
+    public String getResourceName() {
+        return getResourcePrefix() + entity.getId();
+    }
+
+    @Override
+    public String getResourceType() {
+        return "Organization";
+    }
+
+    @Override
+    public String getResourcePrefix() {
+        return "org.resource.";
+    }
+
+    // TODO this method might be useless
+    @Override
+    public Set<String> getResourceScopes() {
+        return Set.of();
     }
 }

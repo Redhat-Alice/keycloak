@@ -17,7 +17,6 @@
 
 package org.keycloak.organization.admin.resource;
 
-import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Objects;
@@ -39,15 +38,21 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.OrganizationDomainModel;
 import org.keycloak.models.OrganizationModel;
 import org.keycloak.organization.OrganizationProvider;
+import org.keycloak.representations.idm.ManagementPermissionReference;
 import org.keycloak.representations.idm.OrganizationDomainRepresentation;
 import org.keycloak.representations.idm.OrganizationRepresentation;
 import org.keycloak.services.ErrorResponse;
+import org.keycloak.services.resources.KeycloakOpenAPI;
 import org.keycloak.services.resources.admin.AdminEventBuilder;
 import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
+import org.keycloak.services.resources.admin.permissions.AdminPermissionManagement;
+import org.keycloak.services.resources.admin.permissions.AdminPermissions;
 import org.keycloak.utils.StringUtil;
 
 @Provider
@@ -146,7 +151,41 @@ public class OrganizationResource {
     public OrganizationIdentityProvidersResource identityProvider(@PathParam("id") String id) {
         return new OrganizationIdentityProvidersResource(session, getOrganization(id), auth, adminEvent);
     }
-    
+
+    /**
+     * Return object stating whether client Authorization permissions have been initialized or not and a reference
+     *
+     *
+     * @return initialized manage permissions reference
+     */
+    @Path("{id}/management/permissions")
+    @PUT
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @NoCache
+    @Tag(name = KeycloakOpenAPI.Admin.Tags.GROUPS)
+    @Operation( summary = "Return object stating whether client Authorization permissions have been initialized or not and a reference")
+    public ManagementPermissionReference setManagementPermissionsEnabled(@PathParam("id") String id, ManagementPermissionReference ref) {
+        OrganizationModel org = getOrganization(id);
+        auth.organizations().requireManage(org);
+
+        AdminPermissionManagement permissions = AdminPermissions.management(session, session.getContext().getRealm());
+        permissions.setPermissionsEnabled(org, ref.isEnabled());
+        if (ref.isEnabled()) {
+            return toMgmtRef(org, permissions);
+        } else {
+            return new ManagementPermissionReference();
+        }
+    }
+
+    public static ManagementPermissionReference toMgmtRef(OrganizationModel org, AdminPermissionManagement permissions) {
+        ManagementPermissionReference ref = new ManagementPermissionReference();
+        ref.setEnabled(true);
+        ref.setResource(permissions.resource(org).getId());
+        ref.setScopePermissions(permissions.permissions(org));
+        return ref;
+    }
+
     private OrganizationModel getOrganization(String id) {
         //checking permissions before trying to find organization to be able to return 403 (instead of 400 or 404)
         auth.realm().requireManageRealm();

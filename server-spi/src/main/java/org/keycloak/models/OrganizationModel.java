@@ -17,12 +17,21 @@
 
 package org.keycloak.models;
 
+import org.keycloak.provider.ProviderEvent;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
-public interface OrganizationModel {
+public interface OrganizationModel extends AuthorizationModel {
+
+
+    interface OrganizationRemovedEvent extends ProviderEvent {
+        RealmModel getRealm();
+        OrganizationModel getOrganization();
+        KeycloakSession getKeycloakSession();
+    }
 
     String ORGANIZATION_ATTRIBUTE = "kc.org";
     String ORGANIZATION_DOMAIN_ATTRIBUTE = "kc.org.domain";

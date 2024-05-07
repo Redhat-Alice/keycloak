@@ -33,6 +33,7 @@ public interface AdminPermissionEvaluator {
     UserPermissionEvaluator users();
     ClientPermissionEvaluator clients();
     GroupPermissionEvaluator groups();
+    OrganizationPermissionEvaluator organizations();
 
     /**
      * Useful as a function pointer, i.e. RoleMapperResource is reused bewteen GroupResource and UserResource to manage role mappings.

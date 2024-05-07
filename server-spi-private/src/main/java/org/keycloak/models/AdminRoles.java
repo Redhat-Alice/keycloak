@@ -36,6 +36,7 @@ public class AdminRoles {
     public static String CREATE_CLIENT = "create-client";
 
     public static String VIEW_REALM = "view-realm";
+    public static String VIEW_ORGANIZATIONS = "view-organization";
     public static String VIEW_USERS = "view-users";
     public static String VIEW_CLIENTS = "view-clients";
     public static String VIEW_EVENTS = "view-events";
@@ -43,6 +44,7 @@ public class AdminRoles {
     public static String VIEW_AUTHORIZATION = "view-authorization";
 
     public static String MANAGE_REALM = "manage-realm";
+    public static String MANAGE_ORGANIZATIONS = "manage-organizations";
     public static String MANAGE_USERS = "manage-users";
     public static String MANAGE_IDENTITY_PROVIDERS = "manage-identity-providers";
     public static String MANAGE_CLIENTS = "manage-clients";
@@ -50,12 +52,13 @@ public class AdminRoles {
     public static String MANAGE_AUTHORIZATION = "manage-authorization";
 
     public static String QUERY_USERS = "query-users";
+    public static String QUERY_ORGANIZATIONS = "query-organizations";
     public static String QUERY_CLIENTS = "query-clients";
     public static String QUERY_REALMS = "query-realms";
     public static String QUERY_GROUPS = "query-groups";
 
-    public static String[] ALL_REALM_ROLES = {CREATE_CLIENT, VIEW_REALM, VIEW_USERS, VIEW_CLIENTS, VIEW_EVENTS, VIEW_IDENTITY_PROVIDERS, VIEW_AUTHORIZATION, MANAGE_REALM, MANAGE_USERS, MANAGE_CLIENTS, MANAGE_EVENTS, MANAGE_IDENTITY_PROVIDERS, MANAGE_AUTHORIZATION, QUERY_USERS, QUERY_CLIENTS, QUERY_REALMS, QUERY_GROUPS};
-    public static String[] ALL_QUERY_ROLES = {QUERY_USERS, QUERY_CLIENTS, QUERY_REALMS, QUERY_GROUPS};
+    public static String[] ALL_REALM_ROLES = {CREATE_CLIENT, VIEW_REALM, VIEW_ORGANIZATIONS, VIEW_USERS, VIEW_CLIENTS, VIEW_EVENTS, VIEW_IDENTITY_PROVIDERS, VIEW_AUTHORIZATION, MANAGE_REALM, MANAGE_ORGANIZATIONS, MANAGE_USERS, MANAGE_CLIENTS, MANAGE_EVENTS, MANAGE_IDENTITY_PROVIDERS, MANAGE_AUTHORIZATION, QUERY_USERS, QUERY_CLIENTS, QUERY_REALMS, QUERY_GROUPS};
+    public static String[] ALL_QUERY_ROLES = {QUERY_USERS, QUERY_CLIENTS, QUERY_REALMS, QUERY_ORGANIZATIONS, QUERY_GROUPS};
 
     public static Set<String> ALL_ROLES = new HashSet<>();
     static {
